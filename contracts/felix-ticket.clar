@@ -7,7 +7,7 @@
 ;; 1 STX = 1_000_000 microstacks
 (define-constant fee u3) ;; How much goes to Felix on each ticket sell
 ;; TODO: Check what happens if the difficulty is out-of-bounds when working with the template engine. Add tests and guards in code.
-(define-constant difficulty u1) ;; Translates to how many numbers will be drawn. Must be between 1 and 10
+(define-constant difficulty u5) ;; Translates to how many numbers will be drawn. Must be between 1 and 10
 (define-constant ticket-price u97) ;; How much the lottery funders want to get from each ticket
 (define-constant number-of-tickets u5) ;; How many tickets can be sold
 ;; TODO: Find better names for this and a few other variables
