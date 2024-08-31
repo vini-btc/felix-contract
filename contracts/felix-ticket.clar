@@ -12,7 +12,7 @@
 (define-constant number-of-tickets u5) ;; How many tickets can be sold
 ;; TODO: Find better names for this and a few other variables
 (define-constant slot-size u1000) ;; How much each funder should contribute to become part of the lottery funders group
-(define-constant number-of-slots u5) ;; How many slots there will be. Each principal can only fill one slot.
+(define-constant number-of-slots u3) ;; How many slots there will be. Each principal can only fill one slot.
 (define-constant start-block-height u10) ;; When the lottery can start. Starting depends on the lottery being funded, the current block height being greater than this value and someone (anyone) has to call the start function
 (define-constant end-block-height u50) ;; When the lottery will end. This block height defines when tickets will stop selling and when playes will stop being able to play.
 (define-constant start-block-buffer u50) ;; The minimum number of blocks before the start to accept the FIRST fund fdaudxg.
