@@ -17,11 +17,6 @@ const ticketPrice = 97;
 const fee = 3;
 const buyBlockMargin = 6;
 
-/*
-  The test below is an example. Learn more in the clarinet-sdk readme:
-  https://github.com/hirosystems/clarinet/blob/develop/components/clarinet-sdk/README.md
-*/
-
 describe("buy tickets", () => {
   it("should allow a player to buy tickets", async () => {
     simnet.callPublicFn(contractName, "fund", [], creator);
