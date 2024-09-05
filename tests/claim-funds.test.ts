@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cvToValue, principalCV, trueCV, uintCV } from "@stacks/transactions";
+import { principalCV, trueCV, uintCV } from "@stacks/transactions";
 
 const accounts = simnet.getAccounts();
 
