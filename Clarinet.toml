@@ -9,6 +9,11 @@ requirements = []
 path = 'contracts/felix-ticket.clar'
 clarity_version = 2
 epoch = 2.5
+
+[contracts.zero-leading]
+path = 'contracts/zero-leading.clar'
+clarity_version = 2
+epoch = 2.5
 [repl.analysis]
 passes = ['check_checker']
 
