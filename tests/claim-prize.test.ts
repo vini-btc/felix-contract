@@ -48,7 +48,7 @@ describe("claim-prize", () => {
     const { result: buyTicket } = simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(winner), uintCV(81311)],
+      [principalCV(winner), uintCV(86916)],
       winner
     );
     expect(buyTicket).toBeOk(uintCV(1));
@@ -61,7 +61,7 @@ describe("claim-prize", () => {
       [],
       funder
     );
-    expect(draw).toBeOk(uintCV(81311));
+    expect(draw).toBeOk(uintCV(86916));
 
     const { result: claimOnDraw, events } = simnet.callPublicFn(
       contractName,
@@ -106,7 +106,7 @@ describe("claim-prize", () => {
     simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(winner), uintCV(81311)],
+      [principalCV(winner), uintCV(86916)],
       winner
     );
     simnet.mineEmptyBlocks(endBlock - simnet.blockHeight);
@@ -136,7 +136,7 @@ describe("claim-prize", () => {
     simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(winner), uintCV(81311)],
+      [principalCV(winner), uintCV(86916)],
       winner
     );
     simnet.callPublicFn(
@@ -181,7 +181,7 @@ describe("claim-prize", () => {
     const { result: buyTicket } = simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(winner), uintCV(81311)],
+      [principalCV(winner), uintCV(86916)],
       winner
     );
     expect(buyTicket).toBeOk(uintCV(1));

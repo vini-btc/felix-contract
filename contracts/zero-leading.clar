@@ -7,16 +7,16 @@
 ;; 1 STX = 1_000_000 microstacks
 (define-constant fee u3) ;; How much goes to Felix on each ticket sell
 ;; TODO: Check what happens if the difficulty is out-of-bounds when working with the template engine. Add tests and guards in code.
-(define-constant difficulty u5) ;; Translates to how many numbers will be drawn. Must be between 1 and 10
+(define-constant difficulty u3) ;; Translates to how many numbers will be drawn. Must be between 1 and 10
 (define-constant ticket-price u97) ;; How much the lottery funders want to get from each ticket
 (define-constant number-of-tickets u5) ;; How many tickets can be sold
 ;; TODO: Find better names for this and a few other variables
 (define-constant slot-size u1000) ;; How much each funder should contribute to become part of the lottery funders group
 (define-constant number-of-slots u3) ;; How many slots there will be. Each principal can only fill one slot.
 (define-constant start-block-height u10) ;; When the lottery can start. Starting depends on the lottery being funded, the current block height being greater than this value and someone (anyone) has to call the start function
-(define-constant end-block-height u50) ;; When the lottery will end. This block height defines when tickets will stop selling and when playes will stop being able to play.
+(define-constant end-block-height u200) ;; When the lottery will end. This block height defines when tickets will stop selling and when playes will stop being able to play.
 (define-constant start-block-buffer u50) ;; The minimum number of blocks before the start to accept the FIRST fund fdaudxg.
-(define-non-fungible-token felix-draft-000 uint) ;; The user-defined lottery name
+(define-non-fungible-token felix-draft-001 uint) ;; The user-defined lottery name
 ;; Contract variables
 (define-data-var drawn-number (optional uint) none) ;; The numbers that will be drawn
 (define-data-var winner (optional uint) none) ;; The winner ticket id
@@ -280,7 +280,7 @@
 ;; @readonly
 ;; @returns list<uint>
 (define-read-only (get-owner (token-id uint))
-    (ok (nft-get-owner? felix-draft-000 token-id)))
+    (ok (nft-get-owner? felix-draft-001 token-id)))
 ;; get-status
 ;; ---
 ;; Get the current status of the contract
@@ -390,7 +390,7 @@
         (try! (stx-transfer? ticket-price contract-caller (as-contract tx-sender)))
         (try! (stx-transfer? fee contract-caller (var-get admin)))
         ;; #[allow(unchecked_data)]
-        (try! (nft-mint? felix-draft-000 ticket-id recipient))
+        (try! (nft-mint? felix-draft-001 ticket-id recipient))
         (var-set last-ticket-id ticket-id)
         (var-set sold-tickets-pool (+ current-sells ticket-price))
         (ok ticket-id))))
@@ -406,13 +406,13 @@
     (begin
         (asserts! (is-won) err-invalid-status)
         (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
-        (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
+        (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-001 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
         (let
             ((contract-principal (as-contract tx-sender))
             (winner-principal contract-caller)
             (prize (var-get prize-pool)))
         (try! (as-contract (stx-transfer? prize contract-principal winner-principal)))
-        (try! (nft-burn? felix-draft-000 ticket-id winner-principal))
+        (try! (nft-burn? felix-draft-001 ticket-id winner-principal))
         (ok true))))
 ;; claim-funds
 ;; ---
@@ -446,13 +446,13 @@
 ;; @returns response<uint>
 (define-public (get-ticket-refund (ticket-id uint))
     (begin
-        (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) tx-sender) err-not-ticket-owner)
+        (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-001 ticket-id) err-inexistent-ticket-id) tx-sender) err-not-ticket-owner)
         (asserts! (is-cancelled) err-invalid-status)
         (let
             ((ticket-owner contract-caller)
             (contract-principal (as-contract tx-sender)))
         (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
-        (try! (nft-burn? felix-draft-000 ticket-id ticket-owner)))
+        (try! (nft-burn? felix-draft-001 ticket-id ticket-owner)))
         (ok ticket-id)))
 
 ;; get-fund-refund 

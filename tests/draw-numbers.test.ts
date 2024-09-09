@@ -11,6 +11,7 @@ import {
 const accounts = simnet.getAccounts();
 const creator = accounts.get("deployer")!;
 const contractName = `felix-ticket`;
+const zeroLeadingContractName = `zero-leading`;
 const startBlock = 10;
 const endBlock = 50;
 
@@ -59,7 +60,31 @@ describe("draw numbers", () => {
     );
     // The vrf-seed is deterministic in tests, so we can expect the same result for the same block-height
     // Since the coded difficulty is 5 we expect the result to be 1
-    expect(result).toBeOk(uintCV(81311));
+    expect(result).toBeOk(uintCV(86916));
+  });
+
+  it("should always use the vrf-seed from the set lottery end block", async () => {
+    const drawer = accounts.get("wallet_7")!;
+
+    simnet.callPublicFn(contractName, "fund", [], creator);
+    simnet.mineEmptyBlocks(startBlock - simnet.blockHeight);
+    const { result: startResult } = simnet.callPublicFn(
+      contractName,
+      "start",
+      [],
+      creator
+    );
+    expect(startResult).toBeOk(boolCV(true));
+    simnet.mineEmptyBlocks(500);
+    const { result } = simnet.callPublicFn(
+      contractName,
+      "draw-numbers",
+      [],
+      drawer
+    );
+    // In this case there were a lot more blocks mined after the lottery end, but since the lottery end block determines
+    // where the seed is coming from we still get the same result as in the previous test.
+    expect(result).toBeOk(uintCV(86916));
   });
 
   it("should finish the lottery after drawing the numbers and the numbers should be available when there are no winners available", async () => {
@@ -81,7 +106,7 @@ describe("draw numbers", () => {
       [],
       drawer
     );
-    expect(result).toBeOk(uintCV(81311));
+    expect(result).toBeOk(uintCV(86916));
 
     const { result: result2 } = simnet.callReadOnlyFn(
       contractName,
@@ -97,7 +122,7 @@ describe("draw numbers", () => {
       [],
       drawer
     );
-    expect(result3).toBeSome(uintCV(81311));
+    expect(result3).toBeSome(uintCV(86916));
 
     const { result: result4 } = simnet.callReadOnlyFn(
       contractName,
@@ -123,7 +148,7 @@ describe("draw numbers", () => {
     const { result: winnerResult } = simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(player), uintCV(81311)],
+      [principalCV(player), uintCV(86916)],
       player
     );
     expect(winnerResult).toBeOk(uintCV(2));
@@ -134,7 +159,7 @@ describe("draw numbers", () => {
       [],
       drawer
     );
-    expect(result).toBeOk(uintCV(81311));
+    expect(result).toBeOk(uintCV(86916));
 
     const { result: result2 } = simnet.callReadOnlyFn(
       contractName,
@@ -150,7 +175,7 @@ describe("draw numbers", () => {
       [],
       drawer
     );
-    expect(result3).toBeSome(uintCV(81311));
+    expect(result3).toBeSome(uintCV(86916));
 
     const { result: result4 } = simnet.callReadOnlyFn(
       contractName,
@@ -164,36 +189,36 @@ describe("draw numbers", () => {
   it("should correctly draw the lottery even when drawn number is zero leading", async () => {
     const drawer = accounts.get("wallet_7")!;
     const player = accounts.get("wallet_3")!;
-    simnet.callPublicFn(contractName, "fund", [], creator);
+    simnet.callPublicFn(zeroLeadingContractName, "fund", [], creator);
     simnet.mineEmptyBlocks(startBlock);
-    simnet.callPublicFn(contractName, "start", [], creator);
+    simnet.callPublicFn(zeroLeadingContractName, "start", [], creator);
     simnet.callPublicFn(
-      contractName,
+      zeroLeadingContractName,
       "buy-ticket",
       [principalCV(player), uintCV(456)],
       player
     );
     const { result: winnerResult } = simnet.callPublicFn(
-      contractName,
+      zeroLeadingContractName,
       "buy-ticket",
-      [principalCV(player), uintCV(3428)],
+      [principalCV(player), uintCV(32)],
       player
     );
     expect(winnerResult).toBeOk(uintCV(2));
 
-    // Moving to the block where we know we'll have a zero-leading number drawn
-    simnet.mineEmptyBlocks(endBlock + 41 - simnet.blockHeight);
+    simnet.mineEmptyBlocks(250);
     const { result } = simnet.callPublicFn(
-      contractName,
+      zeroLeadingContractName,
       "draw-numbers",
       [],
       drawer
     );
-    // We get a 4 numbers drawn, even though the Lottery has a difficulty of 5
-    expect(result).toBeOk(uintCV(3428));
+
+    // We get a 2 numbers drawn, even though the "Zero Leading" Lottery has a difficulty of 3
+    expect(result).toBeOk(uintCV(32));
 
     const { result: result2 } = simnet.callReadOnlyFn(
-      contractName,
+      zeroLeadingContractName,
       "get-status",
       [],
       drawer
@@ -201,15 +226,15 @@ describe("draw numbers", () => {
     expect(result2).toBeOk(stringAsciiCV("won"));
 
     const { result: result3 } = simnet.callReadOnlyFn(
-      contractName,
+      zeroLeadingContractName,
       "get-drawn-number",
       [],
       drawer
     );
-    expect(result3).toBeSome(uintCV(3428));
+    expect(result3).toBeSome(uintCV(32));
 
     const { result: result4 } = simnet.callReadOnlyFn(
-      contractName,
+      zeroLeadingContractName,
       "get-winner-ticket-id",
       [],
       drawer
