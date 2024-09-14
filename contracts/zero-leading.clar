@@ -268,6 +268,12 @@
         (map-insert refund-claimers { address: claimer } { reclaimed: true })
         (ok true))))
 
+(define-public (burn-ticket (ticket-id uint))
+    (begin
+        (asserts! (or (is-finished) (is-won)) err-invalid-status)
+        ;; #[allow(unchecked_data)]
+        (nft-burn? felix-draft-001 ticket-id contract-caller)))
+
 (define-public (update-admin (new-admin principal))
     (begin
         (asserts! (is-admin contract-caller) err-admin-only)
