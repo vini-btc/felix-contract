@@ -1,40 +1,30 @@
-;; Felix Lottery Contract
-;; v.0.0.3
-;; --- 
 (define-constant felix 'STNHKEPYEPJ8ET55ZZ0M5A34J0R3N5FM2CMMMAZ6)
-;; User-defined constants
-;; All price-related constants are defined in Microstacks in this contract
-;; 1 STX = 1_000_000 microstacks
-(define-constant fee u3) ;; How much goes to Felix on each ticket sell
-;; TODO: Check what happens if the difficulty is out-of-bounds when working with the template engine. Add tests and guards in code.
-(define-constant difficulty u3) ;; Translates to how many numbers will be drawn. Must be between 1 and 10
-(define-constant ticket-price u97) ;; How much the lottery funders want to get from each ticket
-(define-constant number-of-tickets u5) ;; How many tickets can be sold
-;; TODO: Find better names for this and a few other variables
-(define-constant slot-size u1000) ;; How much each funder should contribute to become part of the lottery funders group
-(define-constant number-of-slots u3) ;; How many slots there will be. Each principal can only fill one slot.
-(define-constant start-block-height u10) ;; When the lottery can start. Starting depends on the lottery being funded, the current block height being greater than this value and someone (anyone) has to call the start function
-(define-constant end-block-height u200) ;; When the lottery will end. This block height defines when tickets will stop selling and when playes will stop being able to play.
-(define-constant start-block-buffer u50) ;; The minimum number of blocks before the start to accept the FIRST fund fdaudxg.
-(define-non-fungible-token felix-draft-001 uint) ;; The user-defined lottery name
-;; Contract variables
-(define-data-var drawn-number (optional uint) none) ;; The numbers that will be drawn
-(define-data-var winner (optional uint) none) ;; The winner ticket id
-(define-data-var prize-pool uint u0) ;; How much is the prize pool. This is basically slots * slot-size
-(define-data-var sold-tickets-pool uint u0) ;; How much is the pool of sold tickets. This is basically number-of-tickets * ticket-price
-(define-data-var admin principal felix) ;; Who's the current lottery admin. This is to be used by the platform in case it needs to cancel a lottery for some reason
-(define-data-var next-funder-id uint u0) ;; The id of the funder is an incremental index. We keep track of what will be the next one using this variable
-;; Token ID
-(define-data-var last-ticket-id uint u0) ;; We start with token uid 0, so the first ticket will have id 1
+(define-constant fee u3)
+(define-constant difficulty u3)
+(define-constant ticket-price u97)
+(define-constant number-of-tickets u5)
+(define-constant slot-size u1000)
+(define-constant number-of-slots u3)
+(define-constant start-block-height u10)
+(define-constant end-block-height u200)
+(define-constant start-block-buffer u50)
+
+(define-non-fungible-token felix-draft-001 uint)
+
+(define-data-var drawn-number (optional uint) none)
+(define-data-var winner (optional uint) none)
+(define-data-var prize-pool uint u0)
+(define-data-var sold-tickets-pool uint u0)
+(define-data-var admin principal felix)
+(define-data-var next-funder-id uint u0)
+(define-data-var last-ticket-id uint u0)
+
 (define-map funders { address: principal } { id: uint })
 (define-map fund-claimers {address: principal } { reclaimed: bool})
 (define-map refund-claimers {address: principal } { reclaimed: bool })
-;; Using two maps to keep track of played numbers
 (define-map numbers { nums: uint } { ticket-id: uint })
 (define-map tickets { ticket-id: uint } { nums: uint })
-;; Errors
-;; Hopefully the error names are self-explanatory
-;; TODO: Check whether it would be possible to replace those error uints by strings. Is the a cost change? Would it need a lot of refactoring of the native calls? 
+
 (define-constant err-not-ticket-owner (err u101))
 (define-constant err-inexistent-ticket-id (err u102))
 (define-constant err-sold-out (err u200))
@@ -57,6 +47,7 @@
 (define-constant err-not-funder (err u1001))
 (define-constant err-refund-already-claimed (err u1002))
 (define-constant err-admin-only (err u2000))
+
 (define-constant BUFF_TO_BYTE (list
     0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0a 0x0b 0x0c 0x0d 0x0e 0x0f
     0x10 0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18 0x19 0x1a 0x1b 0x1c 0x1d 0x1e 0x1f 
@@ -76,8 +67,6 @@
     0xf0 0xf1 0xf2 0xf3 0xf4 0xf5 0xf6 0xf7 0xf8 0xf9 0xfa 0xfb 0xfc 0xfd 0xfe 0xff
 ))
 
-;; Contract Status
-;; Those are all the possible states a contract can be in, and the related helper functions
 (define-constant available-contract-status
     (list "funding" "active" "won" "cancelled" "finished"))
 (define-private (funding-status) (unwrap-panic (element-at? available-contract-status u0)))
@@ -86,92 +75,23 @@
 (define-private (cancelled-status) (unwrap-panic (element-at? available-contract-status u3)))
 (define-private (finished-status) (unwrap-panic (element-at? available-contract-status u4)))
 (define-data-var current-status (string-ascii 9) (funding-status))
-;; is-active
-;; ---
-;; Checks if the contract is currently in Won status
-;; The only path to becoming an active contract is if it was funded and started (someone called "start")
-;; This function will use the current value of the current-status variable
-;; @private
-;; @returns bool
 (define-private (is-active) (is-eq (var-get current-status) (active-status)))
-;; is-won
-;; ---
-;; Checks if the contract is currently in Won status
-;; The only path to become a Won contract is if after being funded and activated, after the drawing of the 
-;; numbers we find a winner
-;; This function will use the current value of the current-status variable
-;; @private
-;; @returns bool
 (define-private (is-won) (is-eq (var-get current-status) (won-status)))
-;; is-finished
-;; ---
-;; Checks if the contract is currently in Finished status
-;; The only path to become a Won contract is if after being funded and activated, after the drawing of the 
-;; numbers we DO NOT find a winner
-;; This function will use the current value of the current-status variable
-;; @private
-;; @returns bool
 (define-private (is-finished) (is-eq (var-get current-status) (finished-status)))
-;; is-cancelled
-;; ---
-;; Checks if the contract is currently in Cancelled status
-;; The only path to become a Cancelled contract is if the admin of the contract calls the cancel function
-;; After a contract is cancelled it allows funders and ticket-buyers to refund what they spent participating
-;; in the contract
-;; This function will use the current value of the current-status variable
-;; @private
-;; @returns bool
 (define-private (is-cancelled) (is-eq (var-get current-status) (cancelled-status)))
-;; is-funding 
-;; ---
-;; Checks if the contract is currently in Funding status
-;; That's the initial contract state. After it was deployed, the contract goes through this period where funding should happen
-;; This function will use the current value of the current-status variable
-;; @private
-;; @returns bool
 (define-private (is-in-funding) (is-eq (var-get current-status) (funding-status)))
-;; is-admin
-;; ---
-;; Checks whether a given principal is the admin of the contract
-;; @private
-;; @param {Principal} test-principal - The Principal to be tested
-;; @returns bool
-(define-private (is-admin (test-principal principal)) (is-eq (var-get admin) test-principal))
-;; is-private
-;; ---
-;; Checks whether a given principal is a funder of the contract
-;; @private
-;; @param {Principal} test-principal - The Principal to be tested
-;; @returns bool
-(define-private (is-funder (test-principal principal))
-    (is-some (map-get? funders (tuple (address test-principal)))))
-;; is-funded
-;; ---
-;; Checks if at least one principal has funded the contract. This is important to allow the contract to become active,
-;; since only funded contracts can become active.
-;; @private
-;; @returns bool
 (define-private (is-funded)
     (> (var-get next-funder-id) u0))
 
-;; NUMBER DRAWING LOGIC
-;; get-random-seed
-;; ---
-;; This function transforms the vrf-seed of the current block height into a sha512 string we're going to later use to
-;; pick a random number. The get-block-info function can only look back at blocks, hence the -1 in the block height;
-;; @private
-;; @returns Buffer 64
+(define-private (is-admin (test-principal principal)) (is-eq (var-get admin) test-principal))
+(define-private (is-funder (test-principal principal))
+    (is-some (map-get? funders (tuple (address test-principal)))))
+
 (define-private (get-random-seed)
     (begin
         (asserts! (> block-height end-block-height) err-not-ended-yet)
         (ok (sha512 (unwrap-panic (get-block-info? vrf-seed (- end-block-height u1)))))))
-;; pick-random-number
-;; ---
-;; This function will receive a buffer and will return an unsigned integer based on it. The unsigned integer is picked 
-;; by transforming the Buffer addresses into bytes and then transforming those bytes into a base/10 number.
-;; @private
-;; @param {Buffer 64} buffer - The buffer that will work as a source for the numbers to be picked
-;; @returns uInt 
+
 (define-private (pick-random-number (buffer (buff 64)))
     (let 
         ((first-byte (unwrap-panic (element-at? buffer u0)))
@@ -186,14 +106,6 @@
     (* (unwrap-panic (index-of? BUFF_TO_BYTE fourth-byte)) (pow u2 (* u8 u1)))
     (* (unwrap-panic (index-of? BUFF_TO_BYTE fifth-byte)) (pow u2 (* u8 u0))))))
 
-;; pick-lottery-numbers
-;; ---
-;; This function will help pick the number with the right amount of decimal digits given the difficulty
-;; set on the contract. If the difficulty is not a uint number between 1 and 10, it will return an error
-;; @private
-;; @param {uint} seed - The seed to be used to pick the number
-;; @throws err-invalid-difficulty
-;; @returns uint
 (define-private (pick-lottery-numbers (seed uint))
     (if (is-eq difficulty u1) (ok (mod seed u10))
     (if (is-eq difficulty u2) (ok (mod seed u100))
@@ -207,13 +119,6 @@
     (if (is-eq difficulty u10) (ok (mod seed u10000000000))
     err-invalid-difficulty)))))))))))
 
-;; end-lottery
-;; ---
-;; Auxiliary function that goes through the process of ending the lottery. It can only be called if the current contract status is active.
-;; It will draw a number, check for a winner, if any, and update the contract status accordingly
-;; @private
-;; @returns void
-;; TODO: Double-check one more time how the number ordering works 
 (define-private (end-lottery)
     (begin
         (asserts! (is-active) err-invalid-status)
@@ -223,80 +128,27 @@
         (var-set winner maybe-winner)
         (var-set current-status (if (is-some maybe-winner) (won-status) (finished-status)))
         (ok true))))
-;; get-number-by-ticket-id
-;; ---
-;; Returns the numbers that were played for a given ticket
-;; @public
-;; @readonly
-;; @param {uint} id - The ticket id
-;; @returns optional<list<uint>>
+
 (define-read-only (get-number-by-ticket-id (id uint))
     (ok (map-get? tickets (tuple (ticket-id id)))))
-;; get-drawn-number
-;; ---
-;; Returns the drawn lottery number
-;; @public
-;; @readonly
-;; @returns optional<list<uint>>
+    
 (define-read-only (get-drawn-number)
     (var-get drawn-number))
-;; get-winner-ticket-id
-;; ---
-;; Returns the winner ticket id 
-;; @public
-;; @readonly
-;; @returns optional<uint>
+
 (define-read-only (get-winner-ticket-id) (ok (var-get winner)))
-;; get-prize-pool
-;; ---
-;; Returns the prize pool in the set contract monetary unit. For now this is microstacks 
-;; This is the prize a lottery player will get if they win the lottery
-;; It is basically the slot-size * the number of funded slots
-;; @public
-;; @readonly
-;; @returns uint 
+
 (define-read-only (get-prize-pool) (ok (var-get prize-pool)))
-;; get-prize-pool
-;; ---
-;; Returns the prize pool in the set contract monetary unit. For now this is microstacks 
-;; This is the prize a lottery player will get if they win the lottery
-;; It is basically the slot-size * the number of funded slots
-;; @public
-;; @readonly
-;; @returns uint 
+
 (define-read-only (get-sold-tickets-pool) (ok (var-get sold-tickets-pool)))
-;; get-prize-pool
-;; ---
-;; Get all the ticket ids for a given number selection
-;; @public
-;; @readonly
-;; @returns list<uint>
+
 (define-read-only (get-ticket-ids (num-to-check uint))
     (ok (map-get? numbers (tuple (nums num-to-check)))))
-;; get-prize-pool
-;; ---
-;; Get the principal that owns the ticket with a given id 
-;; @public
-;; @readonly
-;; @returns list<uint>
+
 (define-read-only (get-owner (token-id uint))
     (ok (nft-get-owner? felix-draft-001 token-id)))
-;; get-status
-;; ---
-;; Get the current status of the contract
-;; @public
-;; @readonly
-;; @returns string-ascii
+
 (define-read-only (get-status) (ok (var-get current-status)))
-;; fund
-;; ---
-;; Allows a principal to fund a given lottery. A principal can only fund a lottery if:
-;; 1. The lottery is in funding state
-;; 2. There's at least one slot available
-;; 3. The principal is not already a funder
-;; On fund we transfer the slot-size to the contract and update all corresponding records
-;; @public
-;; @returns string-ascii
+
 (define-public (fund) 
     (begin
         (let
@@ -311,12 +163,6 @@
         (var-set prize-pool (+ current-prize slot-size))
         (ok true))))
 
-;; start
-;; ---
-;; Starts the lottery. This means the lottery will now be in active state, so tickets can be sold.
-;; It must be on a valid block-height: > start-block-height 
-;; @public
-;; @returns response<bool>
 (define-public (start)
     (begin
         (print block-height)
@@ -325,28 +171,13 @@
         (asserts! (is-in-funding) err-invalid-status)
         (var-set current-status (active-status))
         (ok true)))
-;; cancel
-;; ---
-;; Cancels a lottery.  
-;; Only the contract admin can call it. This function is a "panic button", in case we find something wrong with the contract
-;; Only checks if the lottery was not cancelled yet and if the caller is indeed the contract admin
-;; @public
-;; @readonly
-;; @returns response<bool>
+
 (define-public (cancel)
     (begin
         (asserts! (is-admin contract-caller) err-admin-only)
         (var-set current-status (cancelled-status))
         (ok true)))
 
-;; draw-numbers
-;; ---
-;; After the network reached the end-block height, the lottery can be drawn. This function handles this. It will generate a random
-;; number based on the set difficulty and derived from the vrf-seed of the previous block. It will also check and set the lottery
-;; winner if any, and move the contract to what should be its final state which can be finalized or won.
-;; asserts
-;; @public
-;; @returns response<uint>
 (define-public (draw-numbers)
     (begin 
         (asserts! (is-active) err-invalid-status)
@@ -358,18 +189,7 @@
         (var-set drawn-number (some lottery-numbers))
         (try! (end-lottery))
         (ok lottery-numbers))))
-;; buy-ticket
-;; ---
-;; Generates a ticket (which is effectively minting an NFT) to a recipient with the selected numbers.
-;; The number must comply with the difficulty set on the contract. If the number is already taken, it will return an error.
-;; Asserts that the number was not selected;
-;; Asserts that the block-height is at least 5 blocks away from the lottery end-block;
-;; Asserts that the lottery is not sold out
-;; Asserts that the lottery is active
-;; @public
-;; @param {principal} recipient - who will be the ticket owner
-;; @param {list<uint>} selected-nums - the number the ticket will be playing on the lottery 
-;; @returns response<uint> -- ticket-id
+
 (define-public (buy-ticket (recipient principal) (selected-nums uint))
     (begin
         (asserts! (is-active) err-invalid-status)
@@ -380,8 +200,6 @@
         (let
             ((ticket-id (+ (var-get last-ticket-id) u1))
             (current-sells (var-get sold-tickets-pool)))
-        ;; We can always insert a ticket when buying, since they all should be unique
-        ;; When we insert a ticket, we also update the numbers map to keep them in sync
         ;; #[allow(unchecked_data)]
         (asserts! (map-insert tickets { ticket-id: ticket-id } { nums: selected-nums }) err-couldnt-update-ticket-ids)
         ;; #[allow(unchecked_data)]
@@ -395,13 +213,6 @@
         (var-set sold-tickets-pool (+ current-sells ticket-price))
         (ok ticket-id))))
 
-;; claim-prize
-;; ---
-;; Allows the winner to claim their prize. To call it the contract must be in won status, and the caller must be the
-;; token owner. This function will verify if they are indeed the winners and if so, will transfer the prize
-;; @public
-;; @param {uint} ticket-id - the id of the (supposed) winning ticket
-;; @returns response<uint> -- ticket-id
 (define-public (claim-prize (ticket-id uint))
     (begin
         (asserts! (is-won) err-invalid-status)
@@ -414,11 +225,7 @@
         (try! (as-contract (stx-transfer? prize contract-principal winner-principal)))
         (try! (nft-burn? felix-draft-001 ticket-id winner-principal))
         (ok true))))
-;; claim-funds
-;; ---
-;; Allows the funders to claim the collected funds and get their funded slot back in case the lottery was finished but had no winners.
-;; @public
-;; @returns response<true>
+
 (define-public (claim-funds)
     (let
         ((claimer tx-sender)
@@ -436,14 +243,7 @@
         (try! (as-contract (stx-transfer? total-claim contract-principal claimer)))
         (map-insert fund-claimers { address: claimer } { reclaimed: true })
         (ok true)))))
-;; get-ticket-refund 
-;; ---
-;; Allows a ticket owner to get back the ticket price in case the lottery is cancelled.
-;; It will assert that the sender is the ticket owner and that the contract is cancelled
-;; On refund the nft is burnt, so we guarantee every ticket is only refunded once
-;; @public
-;; @param {uint} ticket-id - the id of the ticket
-;; @returns response<uint>
+
 (define-public (get-ticket-refund (ticket-id uint))
     (begin
         (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-001 ticket-id) err-inexistent-ticket-id) tx-sender) err-not-ticket-owner)
@@ -455,12 +255,6 @@
         (try! (nft-burn? felix-draft-001 ticket-id ticket-owner)))
         (ok ticket-id)))
 
-;; get-fund-refund 
-;; ---
-;; Allows a lottery funder to get back their funds in case the lottery is cancelled
-;; It will assert that the sender is a funder, that the contract was still cancelled and that the funder didn't get a refund yet
-;; @public
-;; @returns response<true>
 (define-public (get-fund-refund)
     (let
         ((claimer contract-caller)
@@ -474,11 +268,6 @@
         (map-insert refund-claimers { address: claimer } { reclaimed: true })
         (ok true))))
 
-;; update-admin
-;; ---
-;; Allows a lottery admin to update the admin principal address
-;; @public
-;; @returns response<principal>
 (define-public (update-admin (new-admin principal))
     (begin
         (asserts! (is-admin contract-caller) err-admin-only)
