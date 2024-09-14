@@ -47,6 +47,7 @@
 (define-constant err-not-funder (err u1001))
 (define-constant err-refund-already-claimed (err u1002))
 (define-constant err-admin-only (err u2000))
+(define-constant err-cant-burn-winning-ticket (err u3000))
 
 (define-constant BUFF_TO_BYTE (list
     0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0a 0x0b 0x0c 0x0d 0x0e 0x0f
@@ -266,6 +267,13 @@
         (try! (as-contract (stx-transfer? slot-size contract-principal claimer)))
         (map-insert refund-claimers { address: claimer } { reclaimed: true })
         (ok true))))
+
+(define-public (burn-ticket (ticket-id uint))
+    (begin
+        (asserts! (or (is-finished) (is-won)) err-invalid-status)
+        (asserts! (not (is-eq (default-to u0 (var-get winner)) ticket-id)) err-cant-burn-winning-ticket)
+        ;; #[allow(unchecked_data)]
+        (nft-burn? felix-draft-000 ticket-id contract-caller)))
 
 (define-public (update-admin (new-admin principal))
     (begin
