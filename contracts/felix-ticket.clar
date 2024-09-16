@@ -8,6 +8,7 @@
 (define-constant start-block-height u10)
 (define-constant end-block-height u50)
 (define-constant start-block-buffer u50)
+(define-constant contract-principal (as-contract tx-sender))
 
 (define-non-fungible-token felix-draft-000 uint)
 
@@ -150,22 +151,22 @@
 (define-read-only (get-status) (ok (var-get current-status)))
 
 (define-public (fund) 
-    (begin
-        (let
-            ((funder-index (var-get next-funder-id))
-            (current-prize (var-get prize-pool))) 
-        (asserts! (is-in-funding) err-invalid-status)
-        (asserts! (< funder-index number-of-slots) err-no-funding-slot-available)
-        (asserts! (not (is-funder tx-sender)) err-principal-already-funder)
-        (try! (stx-transfer? slot-size tx-sender (as-contract tx-sender)))
-        (map-insert funders { address: tx-sender } { id: funder-index })
-        (var-set next-funder-id (+ funder-index u1))
-        (var-set prize-pool (+ current-prize slot-size))
-        (ok true))))
+    (let
+        ((funder-index (var-get next-funder-id))
+        (current-prize (var-get prize-pool))) 
+    (asserts! (is-in-funding) err-invalid-status)
+    (asserts! (< funder-index number-of-slots) err-no-funding-slot-available)
+    (asserts! (not (is-funder contract-caller)) err-principal-already-funder)
+    (try! (stx-transfer? slot-size contract-caller contract-principal))
+    ;; The next line is the only map-insert we do in the funders map
+    ;; this means we're making sure you can only become a funder if you lock the slot
+    (map-insert funders { address: contract-caller } { id: funder-index })
+    (var-set next-funder-id (+ funder-index u1))
+    (var-set prize-pool (+ current-prize slot-size))
+    (ok true)))
 
 (define-public (start)
     (begin
-        (print block-height)
         (asserts! (> block-height start-block-height) err-start-too-early)
         (asserts! (> (var-get next-funder-id) u0) err-not-funded)
         (asserts! (is-in-funding) err-invalid-status)
@@ -183,90 +184,79 @@
         (asserts! (is-active) err-invalid-status)
         (asserts! (> block-height end-block-height) err-not-ended-yet)
         (let
-            ((random-seed (try! (get-random-seed)))
-            (seed-number (pick-random-number random-seed))
-            (lottery-numbers (unwrap-panic (pick-lottery-numbers seed-number))))
+            ((lottery-numbers (unwrap-panic (pick-lottery-numbers (pick-random-number (unwrap-panic (get-random-seed)))))))
         (var-set drawn-number (some lottery-numbers))
         (try! (end-lottery))
         (ok lottery-numbers))))
 
 (define-public (buy-ticket (recipient principal) (selected-nums uint))
-    (begin
-        (asserts! (is-active) err-invalid-status)
-        (asserts! (< block-height (- end-block-height u6)) err-end-too-close)
-        (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
-        (asserts! (<= selected-nums (- (pow u10 difficulty) u1)) err-invalid-number)
-        (asserts! (is-none (map-get? numbers (tuple (nums selected-nums)))) err-number-already-sold)
-        (let
-            ((ticket-id (+ (var-get last-ticket-id) u1))
-            (current-sells (var-get sold-tickets-pool)))
-        ;; #[allow(unchecked_data)]
-        (asserts! (map-insert tickets { ticket-id: ticket-id } { nums: selected-nums }) err-couldnt-update-ticket-ids)
-        ;; #[allow(unchecked_data)]
-        (asserts! (map-insert numbers { nums: selected-nums } { ticket-id: ticket-id }) err-couldnt-update-ticket-ids)
-        ;; #[allow(unchecked_data)]
-        (try! (stx-transfer? ticket-price contract-caller (as-contract tx-sender)))
-        (try! (stx-transfer? fee contract-caller (var-get admin)))
-        ;; #[allow(unchecked_data)]
-        (try! (nft-mint? felix-draft-000 ticket-id recipient))
-        (var-set last-ticket-id ticket-id)
-        (var-set sold-tickets-pool (+ current-sells ticket-price))
-        (ok ticket-id))))
+    (let
+        ((ticket-id (+ (var-get last-ticket-id) u1))
+        (current-sells (var-get sold-tickets-pool)))
+    (asserts! (is-active) err-invalid-status)
+    (asserts! (< block-height (- end-block-height u6)) err-end-too-close)
+    (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
+    (asserts! (<= selected-nums (- (pow u10 difficulty) u1)) err-invalid-number)
+    (asserts! (is-none (map-get? numbers (tuple (nums selected-nums)))) err-number-already-sold)
+    ;; #[allow(unchecked_data)]
+    (asserts! (map-insert tickets { ticket-id: ticket-id } { nums: selected-nums }) err-couldnt-update-ticket-ids)
+    ;; #[allow(unchecked_data)]
+    (asserts! (map-insert numbers { nums: selected-nums } { ticket-id: ticket-id }) err-couldnt-update-ticket-ids)
+    ;; #[allow(unchecked_data)]
+    (try! (stx-transfer? ticket-price contract-caller contract-principal))
+    (try! (stx-transfer? fee contract-caller (var-get admin)))
+    ;; #[allow(unchecked_data)]
+    (try! (nft-mint? felix-draft-000 ticket-id recipient))
+    (var-set last-ticket-id ticket-id)
+    (var-set sold-tickets-pool (+ current-sells ticket-price))
+    (ok ticket-id)))
 
 (define-public (claim-prize (ticket-id uint))
-    (begin
-        (asserts! (is-won) err-invalid-status)
-        (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
-        (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
-        (let
-            ((contract-principal (as-contract tx-sender))
-            (winner-principal contract-caller)
-            (prize (var-get prize-pool)))
-        (try! (as-contract (stx-transfer? prize contract-principal winner-principal)))
-        (try! (nft-burn? felix-draft-000 ticket-id winner-principal))
-        (ok true))))
+    (let
+        ((winner-principal contract-caller)
+        (prize (var-get prize-pool)))
+    (asserts! (is-won) err-invalid-status)
+    (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
+    (try! (as-contract (stx-transfer? prize contract-principal winner-principal)))
+    (try! (nft-burn? felix-draft-000 ticket-id winner-principal))
+    (ok true)))
 
 (define-public (claim-funds)
     (let
-        ((claimer tx-sender)
+        ((claimer contract-caller)
         (has-claimed (is-some (map-get? fund-claimers (tuple (address claimer))))))
-    (begin
-        (asserts! (is-funder claimer) err-not-funder)
-        (asserts! (or (is-won) (is-finished)) err-invalid-status)
-        (asserts! (not has-claimed) err-funder-already-claimed)
-        (let
-            ((number-of-funders (var-get next-funder-id))
-            (contract-principal (as-contract tx-sender))
-            (sold-ticket-part (/ (var-get sold-tickets-pool) number-of-funders))
-            (fund-return (if (is-won) u0 slot-size))
-            (total-claim (+ sold-ticket-part fund-return)))
-        (try! (as-contract (stx-transfer? total-claim contract-principal claimer)))
-        (map-insert fund-claimers { address: claimer } { reclaimed: true })
-        (ok true)))))
+    (asserts! (is-funder claimer) err-not-funder)
+    (asserts! (or (is-won) (is-finished)) err-invalid-status)
+    (asserts! (not has-claimed) err-funder-already-claimed)
+    (let
+        ((number-of-funders (var-get next-funder-id))
+        (sold-ticket-part (/ (var-get sold-tickets-pool) number-of-funders))
+        (fund-return (if (is-won) u0 slot-size))
+        (total-claim (+ sold-ticket-part fund-return)))
+    (try! (as-contract (stx-transfer? total-claim contract-principal claimer)))
+    (map-insert fund-claimers { address: claimer } { reclaimed: true })
+    (ok true))))
 
 (define-public (get-ticket-refund (ticket-id uint))
-    (begin
-        (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) tx-sender) err-not-ticket-owner)
-        (asserts! (is-cancelled) err-invalid-status)
-        (let
-            ((ticket-owner contract-caller)
-            (contract-principal (as-contract tx-sender)))
-        (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
-        (try! (nft-burn? felix-draft-000 ticket-id ticket-owner)))
-        (ok ticket-id)))
+    (let
+        ((ticket-owner contract-caller))
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) tx-sender) err-not-ticket-owner)
+    (asserts! (is-cancelled) err-invalid-status)
+    (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
+    (try! (nft-burn? felix-draft-000 ticket-id ticket-owner))
+    (ok ticket-id)))
 
 (define-public (get-fund-refund)
     (let
         ((claimer contract-caller)
-        (contract-principal (as-contract tx-sender))
         (has-refunded (is-some (map-get? refund-claimers (tuple (address claimer))))))
-    (begin
-        (asserts! (is-cancelled) err-invalid-status)
-        (asserts! (is-funder claimer) err-not-funder)
-        (asserts! (not has-refunded) err-refund-already-claimed)
-        (try! (as-contract (stx-transfer? slot-size contract-principal claimer)))
-        (map-insert refund-claimers { address: claimer } { reclaimed: true })
-        (ok true))))
+    (asserts! (is-cancelled) err-invalid-status)
+    (asserts! (is-funder claimer) err-not-funder)
+    (asserts! (not has-refunded) err-refund-already-claimed)
+    (try! (as-contract (stx-transfer? slot-size contract-principal claimer)))
+    (map-insert refund-claimers { address: claimer } { reclaimed: true })
+    (ok true)))
 
 (define-public (burn-ticket (ticket-id uint))
     (begin
