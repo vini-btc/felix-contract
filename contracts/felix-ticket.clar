@@ -8,9 +8,9 @@
 (define-constant start-block-height u10)
 (define-constant end-block-height u50)
 (define-constant start-block-buffer u50)
-(define-constant contract-principal (as-contract tx-sender))
-
 (define-non-fungible-token felix-draft-000 uint)
+
+(define-constant contract-principal (as-contract tx-sender))
 
 (define-data-var drawn-number (optional uint) none)
 (define-data-var winner (optional uint) none)
@@ -24,8 +24,6 @@
 (define-map funders principal bool)
 ;; Maps chosen numbers to ticket ids
 (define-map numbersToTicketIds uint uint)
-;; Maps ticket ids to chosen numbers
-(define-map ticketIdToNumbers uint uint)
 
 (define-constant err-not-ticket-owner (err u101))
 (define-constant err-inexistent-ticket-id (err u102))
@@ -131,9 +129,6 @@
         (var-set current-status (if (is-some maybe-winner-ticket-id) (won-status) (finished-status)))
         (ok true))))
 
-(define-read-only (get-number-by-ticket-id (id uint))
-    (ok (map-get? ticketIdToNumbers id)))
-
 (define-read-only (get-drawn-number)
     (var-get drawn-number))
 
@@ -197,8 +192,6 @@
     (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
     (asserts! (<= selected-nums (- (pow u10 difficulty) u1)) err-invalid-number)
     (asserts! (is-none (map-get? numbersToTicketIds selected-nums)) err-number-already-sold)
-    ;; #[allow(unchecked_data)]
-    (asserts! (map-insert ticketIdToNumbers ticket-id selected-nums) err-couldnt-update-ticket-ids)
     ;; #[allow(unchecked_data)]
     (asserts! (map-insert numbersToTicketIds selected-nums ticket-id) err-couldnt-update-ticket-ids)
     ;; #[allow(unchecked_data)]
