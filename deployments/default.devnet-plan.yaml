@@ -11,15 +11,15 @@ plan:
         - contract-publish:
             contract-name: felix-ticket
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 240560
+            cost: 127480
             path: contracts/felix-ticket.clar
             anchor-block-only: true
             clarity-version: 2
         - contract-publish:
-            contract-name: zero-leading-felix-ticket
+            contract-name: zero-leading
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 0
-            path: contracts/zero-leading-felix-ticket.clar
+            cost: 136620
+            path: contracts/zero-leading.clar
             anchor-block-only: true
             clarity-version: 2
       epoch: "2.5"
