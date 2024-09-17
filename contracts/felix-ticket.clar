@@ -23,8 +23,10 @@
 (define-map funders { address: principal } { id: uint })
 (define-map fund-claimers {address: principal } { reclaimed: bool})
 (define-map refund-claimers {address: principal } { reclaimed: bool })
-(define-map numbers { nums: uint } { ticket-id: uint })
-(define-map tickets { ticket-id: uint } { nums: uint })
+;; Maps chosen numbers to ticket ids
+(define-map numbersToTicketIds uint uint)
+;; Maps ticket ids to chosen numbers
+(define-map ticketIdToNumbers uint uint)
 
 (define-constant err-not-ticket-owner (err u101))
 (define-constant err-inexistent-ticket-id (err u102))
@@ -125,13 +127,13 @@
         (asserts! (is-active) err-invalid-status)
         (asserts! (is-some (var-get drawn-number)) err-unable-to-end-lottery)
         (let
-            ((maybe-winner (get ticket-id (map-get? numbers (tuple (nums (unwrap-panic (var-get drawn-number))))))))
-        (var-set winner maybe-winner)
-        (var-set current-status (if (is-some maybe-winner) (won-status) (finished-status)))
+            ((maybe-winner-ticket-id (map-get? numbersToTicketIds (unwrap-panic (var-get drawn-number)))))
+        (var-set winner maybe-winner-ticket-id)
+        (var-set current-status (if (is-some maybe-winner-ticket-id) (won-status) (finished-status)))
         (ok true))))
 
 (define-read-only (get-number-by-ticket-id (id uint))
-    (ok (map-get? tickets (tuple (ticket-id id)))))
+    (ok (map-get? ticketIdToNumbers id)))
 
 (define-read-only (get-drawn-number)
     (var-get drawn-number))
@@ -143,7 +145,7 @@
 (define-read-only (get-sold-tickets-pool) (ok (var-get sold-tickets-pool)))
 
 (define-read-only (get-ticket-ids (num-to-check uint))
-    (ok (map-get? numbers (tuple (nums num-to-check)))))
+    (ok (map-get? numbersToTicketIds num-to-check)))
 
 (define-read-only (get-owner (token-id uint))
     (ok (nft-get-owner? felix-draft-000 token-id)))
@@ -158,8 +160,6 @@
     (asserts! (< funder-index number-of-slots) err-no-funding-slot-available)
     (asserts! (not (is-funder contract-caller)) err-principal-already-funder)
     (try! (stx-transfer? slot-size contract-caller contract-principal))
-    ;; The next line is the only map-insert we do in the funders map
-    ;; this means we're making sure you can only become a funder if you lock the slot
     (map-insert funders { address: contract-caller } { id: funder-index })
     (var-set next-funder-id (+ funder-index u1))
     (var-set prize-pool (+ current-prize slot-size))
@@ -197,11 +197,11 @@
     (asserts! (< block-height (- end-block-height u6)) err-end-too-close)
     (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
     (asserts! (<= selected-nums (- (pow u10 difficulty) u1)) err-invalid-number)
-    (asserts! (is-none (map-get? numbers (tuple (nums selected-nums)))) err-number-already-sold)
+    (asserts! (is-none (map-get? numbersToTicketIds selected-nums)) err-number-already-sold)
     ;; #[allow(unchecked_data)]
-    (asserts! (map-insert tickets { ticket-id: ticket-id } { nums: selected-nums }) err-couldnt-update-ticket-ids)
+    (asserts! (map-insert ticketIdToNumbers ticket-id selected-nums) err-couldnt-update-ticket-ids)
     ;; #[allow(unchecked_data)]
-    (asserts! (map-insert numbers { nums: selected-nums } { ticket-id: ticket-id }) err-couldnt-update-ticket-ids)
+    (asserts! (map-insert numbersToTicketIds selected-nums ticket-id) err-couldnt-update-ticket-ids)
     ;; #[allow(unchecked_data)]
     (try! (stx-transfer? ticket-price contract-caller contract-principal))
     (try! (stx-transfer? fee contract-caller (var-get admin)))
@@ -213,13 +213,13 @@
 
 (define-public (claim-prize (ticket-id uint))
     (let
-        ((winner-principal contract-caller)
+        ((alleged-winner-principal contract-caller)
         (prize (var-get prize-pool)))
     (asserts! (is-won) err-invalid-status)
     (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
     (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
-    (try! (as-contract (stx-transfer? prize contract-principal winner-principal)))
-    (try! (nft-burn? felix-draft-000 ticket-id winner-principal))
+    (try! (as-contract (stx-transfer? prize contract-principal alleged-winner-principal)))
+    (try! (nft-burn? felix-draft-000 ticket-id alleged-winner-principal))
     (ok true)))
 
 (define-public (claim-funds)
