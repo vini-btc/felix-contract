@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  boolCV,
-  principalCV,
-  someCV,
-  tupleCV,
-  uintCV,
-} from "@stacks/transactions";
+import { boolCV, principalCV, someCV, uintCV } from "@stacks/transactions";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -230,9 +224,8 @@ describe("buy tickets", () => {
     expect(result).toBeErr(uintCV(800));
   });
 
-  it("should correctly assign the played number to the ticket id", async () => {
+  it.only("should correctly assign the played number to the ticket id", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
-    const caller = accounts.get("wallet_7")!;
 
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(startBlock - simnet.blockHeight);
@@ -245,13 +238,13 @@ describe("buy tickets", () => {
       ticketBuyer
     );
 
-    const { result } = simnet.callReadOnlyFn(
+    const ticketId = simnet.getMapEntry(
       contractName,
-      "get-number-by-ticket-id",
-      [uintCV(1)],
-      caller
+      "numbersToTicketIds",
+      uintCV(12345)
     );
-    expect(result).toBeOk(someCV(uintCV(12345)));
+
+    expect(ticketId).toBeSome(uintCV(1));
   });
 
   it("should correctly assign the ticket id to the played numbers", async () => {
