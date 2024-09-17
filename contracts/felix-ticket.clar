@@ -233,7 +233,7 @@
 (define-public (get-ticket-refund (ticket-id uint))
     (let
         ((ticket-owner contract-caller))
-    (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) tx-sender) err-not-ticket-owner)
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-cancelled) err-invalid-status)
     (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
     (try! (nft-burn? felix-draft-000 ticket-id ticket-owner))
