@@ -251,13 +251,7 @@ describe("buy tickets", () => {
       [uintCV(1)],
       caller
     );
-    expect(result).toBeOk(
-      someCV(
-        tupleCV({
-          nums: uintCV(12345),
-        })
-      )
-    );
+    expect(result).toBeOk(someCV(uintCV(12345)));
   });
 
   it("should correctly assign the ticket id to the played numbers", async () => {

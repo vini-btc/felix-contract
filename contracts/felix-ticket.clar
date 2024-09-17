@@ -17,12 +17,11 @@
 (define-data-var prize-pool uint u0)
 (define-data-var sold-tickets-pool uint u0)
 (define-data-var admin principal felix)
-(define-data-var next-funder-id uint u0)
+(define-data-var funder-count uint u0)
 (define-data-var last-ticket-id uint u0)
 
-(define-map funders { address: principal } { id: uint })
-(define-map fund-claimers {address: principal } { reclaimed: bool})
-(define-map refund-claimers {address: principal } { reclaimed: bool })
+;; Maps funders to a bool indicating if they have claimed their funds
+(define-map funders principal bool)
 ;; Maps chosen numbers to ticket ids
 (define-map numbersToTicketIds uint uint)
 ;; Maps ticket ids to chosen numbers
@@ -85,9 +84,9 @@
 (define-private (is-cancelled) (is-eq (var-get current-status) (cancelled-status)))
 (define-private (is-in-funding) (is-eq (var-get current-status) (funding-status)))
 (define-private (is-funder (test-principal principal))
-    (is-some (map-get? funders (tuple (address test-principal)))))
+    (is-some (map-get? funders test-principal)))
 (define-private (is-funded)
-    (> (var-get next-funder-id) u0))
+    (> (var-get funder-count) u0))
 (define-private (is-admin (test-principal principal)) (is-eq (var-get admin) test-principal))
 
 (define-private (get-random-seed)
@@ -154,21 +153,21 @@
 
 (define-public (fund) 
     (let
-        ((funder-index (var-get next-funder-id))
+        ((last-funder-count (var-get funder-count))
         (current-prize (var-get prize-pool))) 
     (asserts! (is-in-funding) err-invalid-status)
-    (asserts! (< funder-index number-of-slots) err-no-funding-slot-available)
+    (asserts! (< last-funder-count number-of-slots) err-no-funding-slot-available)
     (asserts! (not (is-funder contract-caller)) err-principal-already-funder)
     (try! (stx-transfer? slot-size contract-caller contract-principal))
-    (map-insert funders { address: contract-caller } { id: funder-index })
-    (var-set next-funder-id (+ funder-index u1))
+    (map-insert funders contract-caller false)
+    (var-set funder-count (+ last-funder-count u1))
     (var-set prize-pool (+ current-prize slot-size))
     (ok true)))
 
 (define-public (start)
     (begin
         (asserts! (> block-height start-block-height) err-start-too-early)
-        (asserts! (> (var-get next-funder-id) u0) err-not-funded)
+        (asserts! (> (var-get funder-count) u0) err-not-funded)
         (asserts! (is-in-funding) err-invalid-status)
         (var-set current-status (active-status))
         (ok true)))
@@ -225,17 +224,17 @@
 (define-public (claim-funds)
     (let
         ((claimer contract-caller)
-        (has-claimed (is-some (map-get? fund-claimers (tuple (address claimer))))))
+        (has-claimed (map-get? funders claimer)))
     (asserts! (is-funder claimer) err-not-funder)
     (asserts! (or (is-won) (is-finished)) err-invalid-status)
-    (asserts! (not has-claimed) err-funder-already-claimed)
+    (asserts! (not (unwrap! has-claimed err-not-funder)) err-funder-already-claimed)
     (let
-        ((number-of-funders (var-get next-funder-id))
+        ((number-of-funders (var-get funder-count))
         (sold-ticket-part (/ (var-get sold-tickets-pool) number-of-funders))
         (fund-return (if (is-won) u0 slot-size))
         (total-claim (+ sold-ticket-part fund-return)))
     (try! (as-contract (stx-transfer? total-claim contract-principal claimer)))
-    (map-insert fund-claimers { address: claimer } { reclaimed: true })
+    (map-set funders claimer true)
     (ok true))))
 
 (define-public (get-ticket-refund (ticket-id uint))
@@ -250,12 +249,12 @@
 (define-public (get-fund-refund)
     (let
         ((claimer contract-caller)
-        (has-refunded (is-some (map-get? refund-claimers (tuple (address claimer))))))
+        (has-refunded (unwrap! (map-get? funders claimer) err-not-funder)))
     (asserts! (is-cancelled) err-invalid-status)
     (asserts! (is-funder claimer) err-not-funder)
     (asserts! (not has-refunded) err-refund-already-claimed)
     (try! (as-contract (stx-transfer? slot-size contract-principal claimer)))
-    (map-insert refund-claimers { address: claimer } { reclaimed: true })
+    (map-set funders claimer true)
     (ok true)))
 
 (define-public (burn-ticket (ticket-id uint))
