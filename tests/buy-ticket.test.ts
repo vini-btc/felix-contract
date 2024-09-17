@@ -289,13 +289,7 @@ describe("buy tickets", () => {
       [uintCV(54321)],
       caller
     );
-    expect(result).toBeOk(
-      someCV(
-        tupleCV({
-          "ticket-id": uintCV(2),
-        })
-      )
-    );
+    expect(result).toBeOk(someCV(uintCV(2)));
   });
 
   it("should not allow buying tickets for a number bigger than what would be drawn with given difficulty but allow a smaller one", async () => {
