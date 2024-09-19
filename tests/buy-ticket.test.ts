@@ -224,7 +224,7 @@ describe("buy tickets", () => {
     expect(result).toBeErr(uintCV(800));
   });
 
-  it.only("should correctly assign the played number to the ticket id", async () => {
+  it("should correctly assign the played number to the ticket id", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
 
     simnet.callPublicFn(contractName, "fund", [], creator);
