@@ -1,15 +1,20 @@
-(define-constant felix 'STNHKEPYEPJ8ET55ZZ0M5A34J0R3N5FM2CMMMAZ6)
-(define-constant fee u3)
-(define-constant difficulty u5)
-(define-constant ticket-price u97)
-(define-constant number-of-tickets u5)
-(define-constant slot-size u1000)
-(define-constant number-of-slots u3)
-(define-constant start-block-height u10)
-(define-constant end-block-height u50)
-(define-constant start-block-buffer u10)
+;; felix-<%= name %>
+;; v5
+;; Learn more at https://felixapp.xyz/
+;; ---
+;;
+(define-constant felix '<%= felix %>)
+(define-constant fee u<%= fee %>)
+(define-constant difficulty u<%= difficulty %>)
+(define-constant ticket-price u<%= ticketPrice %>)
+(define-constant number-of-tickets u<%= availableTickets %>)
+(define-constant slot-size u<%= slotSize %>)
+(define-constant number-of-slots u<%= slots %>)
+(define-constant start-block-height u<%= startBlock %>)
+(define-constant start-block-buffer u<%= startBlockBuffer %>)
+(define-constant end-block-height u<%= endBlock %>)
 (define-constant end-cooldown u6)
-(define-non-fungible-token felix-draft-000 uint)
+(define-non-fungible-token felix-<%= name %> uint)
 
 (define-constant contract-principal (as-contract tx-sender))
 
@@ -68,6 +73,7 @@
     0xe0 0xe1 0xe2 0xe3 0xe4 0xe5 0xe6 0xe7 0xe8 0xe9 0xea 0xeb 0xec 0xed 0xee 0xef
     0xf0 0xf1 0xf2 0xf3 0xf4 0xf5 0xf6 0xf7 0xf8 0xf9 0xfa 0xfb 0xfc 0xfd 0xfe 0xff
 ))
+
 
 (define-constant available-contract-status
     (list "funding" "active" "won" "cancelled" "finished"))
@@ -143,7 +149,7 @@
     (ok (map-get? numbersToTicketIds num-to-check)))
 
 (define-read-only (get-owner (token-id uint))
-    (ok (nft-get-owner? felix-draft-000 token-id)))
+    (ok (nft-get-owner? felix-<%= name %> token-id)))
 
 (define-read-only (get-status) (ok (var-get current-status)))
 
@@ -152,6 +158,7 @@
         ((last-funder-count (var-get funder-count))
         (current-prize (var-get prize-pool))) 
     (asserts! (is-in-funding) err-invalid-status)
+    (asserts! (> start-block-height block-height) err-start-too-close)
     (asserts! (< block-height (- end-block-height end-cooldown)) err-end-too-close)
     (asserts! (> end-block-height (+ start-block-height start-block-buffer)) err-end-too-close)
     (asserts! (< last-funder-count number-of-slots) err-no-funding-slot-available)
@@ -164,10 +171,11 @@
 
 (define-public (start)
     (begin
+        (asserts! (is-in-funding) err-invalid-status)
         (asserts! (> block-height start-block-height) err-start-too-early)
         (asserts! (> end-block-height (+ start-block-height start-block-buffer)) err-end-too-close)
+        (asserts! (> end-block-height block-height) err-end-too-close)
         (asserts! (> (var-get funder-count) u0) err-not-funded)
-        (asserts! (is-in-funding) err-invalid-status)
         (var-set current-status (active-status))
         (ok true)))
 
@@ -192,7 +200,7 @@
         ((ticket-id (+ (var-get last-ticket-id) u1))
         (current-sells (var-get sold-tickets-pool)))
     (asserts! (is-active) err-invalid-status)
-    (asserts! (< block-height (- end-block-height u6)) err-end-too-close)
+    (asserts! (< block-height (- end-block-height end-cooldown)) err-end-too-close)
     (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
     (asserts! (<= selected-nums (- (pow u10 difficulty) u1)) err-invalid-number)
     (asserts! (is-none (map-get? numbersToTicketIds selected-nums)) err-number-already-sold)
@@ -202,7 +210,7 @@
     (try! (stx-transfer? ticket-price contract-caller contract-principal))
     (try! (stx-transfer? fee contract-caller (var-get admin)))
     ;; #[allow(unchecked_data)]
-    (try! (nft-mint? felix-draft-000 ticket-id recipient))
+    (try! (nft-mint? felix-<%= name %> ticket-id recipient))
     (var-set last-ticket-id ticket-id)
     (var-set sold-tickets-pool (+ current-sells ticket-price))
     (ok ticket-id)))
@@ -212,10 +220,10 @@
         ((alleged-winner-principal contract-caller)
         (prize (var-get prize-pool)))
     (asserts! (is-won) err-invalid-status)
-    (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-<%= name %> ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
     (try! (as-contract (stx-transfer? prize contract-principal alleged-winner-principal)))
-    (try! (nft-burn? felix-draft-000 ticket-id alleged-winner-principal))
+    (try! (nft-burn? felix-<%= name %> ticket-id alleged-winner-principal))
     (ok true)))
 
 (define-public (claim-funds)
@@ -237,10 +245,10 @@
 (define-public (get-ticket-refund (ticket-id uint))
     (let
         ((ticket-owner contract-caller))
-    (asserts! (is-eq (unwrap! (nft-get-owner? felix-draft-000 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-<%= name %> ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-cancelled) err-invalid-status)
     (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
-    (try! (nft-burn? felix-draft-000 ticket-id ticket-owner))
+    (try! (nft-burn? felix-<%= name %> ticket-id ticket-owner))
     (ok ticket-id)))
 
 (define-public (get-fund-refund)
@@ -259,7 +267,7 @@
         (asserts! (or (is-finished) (is-won)) err-invalid-status)
         (asserts! (not (is-eq (default-to u0 (var-get winner)) ticket-id)) err-cant-burn-winning-ticket)
         ;; #[allow(unchecked_data)]
-        (nft-burn? felix-draft-000 ticket-id contract-caller)))
+        (nft-burn? felix-<%= name %> ticket-id contract-caller)))
 
 (define-public (update-admin (new-admin principal))
     (begin
