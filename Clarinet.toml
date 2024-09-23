@@ -1,24 +1,26 @@
 [project]
-name = 'felix-contract'
-description = ''
+name = 'felix'
+description = 'A Stacks lottery that allows you to play on both sides'
 authors = []
 telemetry = true
-cache_dir = './.cache'
-requirements = []
-[contracts.felix-ticket]
-path = 'contracts/felix-ticket.clar'
+cache_dir = '.cache'
+
+[[project.requirements]]
+contract_id = 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait'
+[contracts.felix-meta]
+path = 'contracts/felix-meta.clar'
 clarity_version = 2
 epoch = 2.5
 
-[contracts.zero-leading]
-path = 'contracts/zero-leading.clar'
+[contracts.felix-ticket]
+path = 'contracts/felix-ticket.clar'
 clarity_version = 2
-epoch = 2.5
+epoch = 2.1
 [repl.analysis]
 passes = ['check_checker']
 
 [repl.analysis.check_checker]
-strict = false
+strict = true
 trusted_sender = false
 trusted_caller = false
 callee_filter = false

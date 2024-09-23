@@ -48,15 +48,38 @@ genesis:
 plan:
   batches:
     - id: 0
+      transactions: []
+      epoch: "2.0"
+    - id: 1
       transactions:
+        - emulated-contract-publish:
+            contract-name: nft-trait
+            emulated-sender: SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9
+            path: ".cache/requirements/SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.clar"
+            clarity-version: 1
         - emulated-contract-publish:
             contract-name: felix-ticket
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/felix-ticket.clar
             clarity-version: 2
+      epoch: "2.1"
+    - id: 2
+      transactions: []
+      epoch: "2.1"
+    - id: 3
+      transactions: []
+      epoch: "2.1"
+    - id: 4
+      transactions:
         - emulated-contract-publish:
-            contract-name: zero-leading
+            contract-name: felix-meta
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            path: contracts/zero-leading.clar
+            path: contracts/felix-meta.clar
             clarity-version: 2
+      epoch: "2.5"
+    - id: 5
+      transactions: []
+      epoch: "2.5"
+    - id: 6
+      transactions: []
       epoch: "2.5"
