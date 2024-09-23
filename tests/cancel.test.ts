@@ -7,13 +7,11 @@ const felix = accounts.get("felix")!;
 const deployer = accounts.get("deployer")!;
 const funder = accounts.get("wallet_2")!;
 
-const fee = BigInt(20);
-
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
   creator: deployer,
   felix,
-  fee,
+  fee: BigInt(20),
   availableTickets: 5,
   ticketPrice: BigInt(10),
   difficulty: 5,
