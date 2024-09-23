@@ -1,18 +1,35 @@
 import { describe, expect, it } from "vitest";
 import { principalCV, trueCV, uintCV } from "@stacks/transactions";
+import { generateContract, GenerateContractArgs } from "../contract-helper";
 
 const accounts = simnet.getAccounts();
-const ticketBuyer = accounts.get("wallet_1")!;
-const ticketBuyer2 = accounts.get("wallet_2")!;
+const felix = accounts.get("felix")!;
 const creator = accounts.get("deployer")!;
-const contractName = `felix-ticket`;
-const startBlock = 10;
-const endBlock = 50;
+const ticketBuyer = accounts.get("wallet_2")!;
+const ticketBuyer2 = accounts.get("wallet_2")!;
+const fee = BigInt(20);
+const defaultContractArgs: GenerateContractArgs = {
+  name: "test",
+  creator,
+  felix,
+  fee,
+  availableTickets: 5,
+  ticketPrice: BigInt(10),
+  difficulty: 5,
+  startBlock: 100,
+  endBlock: 200,
+  token: "STX",
+  slots: 10,
+  slotSize: BigInt(1_000),
+};
+const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("burn tickets", () => {
   it("should allow a player to burn their tickets if the lottery is finished", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
-    simnet.mineEmptyBlocks(startBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "start", [], creator);
     simnet.callPublicFn(
       contractName,
@@ -20,7 +37,7 @@ describe("burn tickets", () => {
       [principalCV(ticketBuyer), uintCV(1245)],
       ticketBuyer
     );
-    simnet.mineEmptyBlocks(endBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "draw-numbers", [], creator);
     const { result, events } = simnet.callPublicFn(
       contractName,
@@ -33,9 +50,9 @@ describe("burn tickets", () => {
       [
         {
           "data": {
-            "asset_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.felix-ticket::felix-draft-000",
+            "asset_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.felix-test::felix-test",
             "raw_value": "0x0100000000000000000000000000000001",
-            "sender": "ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5",
+            "sender": "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG",
             "value": {
               "type": 1,
               "value": 1n,
@@ -48,8 +65,10 @@ describe("burn tickets", () => {
   });
 
   it("should allow a player to burn their tickets if the lottery is won and the ticket is not the winning ticket", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
-    simnet.mineEmptyBlocks(startBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "start", [], creator);
     simnet.callPublicFn(
       contractName,
@@ -62,10 +81,10 @@ describe("burn tickets", () => {
       contractName,
       "buy-ticket",
       // This ticket is the winning ticket
-      [principalCV(ticketBuyer), uintCV(86916)],
+      [principalCV(ticketBuyer), uintCV(15032)],
       ticketBuyer2
     );
-    simnet.mineEmptyBlocks(endBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "draw-numbers", [], creator);
     const { result, events } = simnet.callPublicFn(
       contractName,
@@ -78,9 +97,9 @@ describe("burn tickets", () => {
       [
         {
           "data": {
-            "asset_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.felix-ticket::felix-draft-000",
+            "asset_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.felix-test::felix-test",
             "raw_value": "0x0100000000000000000000000000000001",
-            "sender": "ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5",
+            "sender": "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG",
             "value": {
               "type": 1,
               "value": 1n,
@@ -93,8 +112,10 @@ describe("burn tickets", () => {
   });
 
   it("should not allow a player to burn their tickets if the lottery is active", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
-    simnet.mineEmptyBlocks(startBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "start", [], creator);
     simnet.callPublicFn(
       contractName,
@@ -110,21 +131,23 @@ describe("burn tickets", () => {
       ticketBuyer
     );
     expect(result).toBeErr(uintCV(502));
-    simnet.mineEmptyBlocks(endBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "draw-numbers", [], creator);
   });
 
   it("should not allow a player to burn their tickets if the ticket is the winning one", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
-    simnet.mineEmptyBlocks(startBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "start", [], creator);
     simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(ticketBuyer), uintCV(86916)],
+      [principalCV(ticketBuyer), uintCV(15032)],
       ticketBuyer
     );
-    simnet.mineEmptyBlocks(endBlock - simnet.blockHeight);
+    simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
     simnet.callPublicFn(contractName, "draw-numbers", [], creator);
 
     const { result } = simnet.callPublicFn(
