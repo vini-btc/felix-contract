@@ -9,13 +9,10 @@ const funder = accounts.get("wallet_2")!;
 const funder2 = accounts.get("wallet_3")!;
 const funder3 = accounts.get("wallet_4")!;
 
-const fee = BigInt(20);
-
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
-  creator: deployer,
   felix,
-  fee,
+  fee: BigInt(20),
   availableTickets: 5,
   ticketPrice: BigInt(10),
   difficulty: 5,
@@ -24,6 +21,7 @@ const defaultContractArgs: GenerateContractArgs = {
   token: "STX",
   slots: 10,
   slotSize: BigInt(1_000),
+  startBlockBuffer: 0,
 };
 const contractName = `felix-${defaultContractArgs.name}`;
 

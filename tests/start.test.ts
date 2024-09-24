@@ -9,7 +9,6 @@ const funder = accounts.get("wallet_2")!;
 
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
-  creator: deployer,
   felix,
   fee: BigInt(20),
   availableTickets: 5,

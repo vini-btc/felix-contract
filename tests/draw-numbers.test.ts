@@ -15,7 +15,6 @@ const creator = accounts.get("deployer")!;
 const fee = BigInt(20);
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
-  creator,
   felix,
   fee,
   availableTickets: 5,
@@ -26,6 +25,7 @@ const defaultContractArgs: GenerateContractArgs = {
   token: "STX",
   slots: 10,
   slotSize: BigInt(1_000),
+  startBlockBuffer: 0,
 };
 const contractName = `felix-${defaultContractArgs.name}`;
 
