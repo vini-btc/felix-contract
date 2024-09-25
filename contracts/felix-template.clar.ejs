@@ -75,11 +75,6 @@
     (> (var-get funder-count) u0))
 (define-private (is-admin (test-principal principal)) (is-eq (var-get admin) test-principal))
 
-(define-private (get-random-seed)
-    (begin
-        (asserts! (> block-height end-block-height) err-not-ended-yet)
-        (ok (sha512 (unwrap-panic (get-block-info? vrf-seed (- end-block-height u1)))))))
-
 (define-private (pick-lottery-numbers (seed uint))
     (if (is-eq difficulty u1) (ok (mod seed u10))
     (if (is-eq difficulty u2) (ok (mod seed u100))
