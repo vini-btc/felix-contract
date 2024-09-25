@@ -81,7 +81,7 @@ describe("burn tickets", () => {
       contractName,
       "buy-ticket",
       // This ticket is the winning ticket
-      [principalCV(ticketBuyer), uintCV(15032)],
+      [principalCV(ticketBuyer), uintCV(64807)],
       ticketBuyer2
     );
     simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
@@ -144,7 +144,7 @@ describe("burn tickets", () => {
     simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(ticketBuyer), uintCV(15032)],
+      [principalCV(ticketBuyer), uintCV(64807)],
       ticketBuyer
     );
     simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);

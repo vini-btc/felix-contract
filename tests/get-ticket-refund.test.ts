@@ -76,6 +76,7 @@ describe("get ticket refund", () => {
       }
     `);
   });
+
   it("is only possible to get a ticket refund once", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);

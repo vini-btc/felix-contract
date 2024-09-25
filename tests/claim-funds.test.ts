@@ -89,7 +89,7 @@ describe("claim-funds", () => {
     simnet.callPublicFn(
       contractName,
       "buy-ticket",
-      [principalCV(ticketBuyer), uintCV(15032)],
+      [principalCV(ticketBuyer), uintCV(64807)],
       winner
     );
     simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
