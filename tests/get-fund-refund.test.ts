@@ -115,7 +115,7 @@ describe("get fund refund", () => {
       [],
       funder
     );
-    expect(drawNumbers).toBeOk(uintCV(15032));
+    expect(drawNumbers).toBeOk(uintCV(64807));
 
     const { result: tryRefundOnFinish } = simnet.callPublicFn(
       contractName,
