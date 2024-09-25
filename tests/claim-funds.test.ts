@@ -29,6 +29,33 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("claim-funds", () => {
+  it("should not allow contracts to call", async () => {
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-claim-funds) (contract-call? '${deployer}.${contractName} claim-funds))`;
+    const contract = await generateContract(defaultContractArgs);
+    simnet.deployContract(contractName, contract, null, deployer);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    simnet.callPublicFn(contractName, "fund", [], funder);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
+    simnet.callPublicFn(contractName, "start", [], funder);
+    simnet.callPublicFn(
+      contractName,
+      "buy-ticket",
+      [principalCV(ticketBuyer), uintCV(12300)],
+      ticketBuyer
+    );
+    simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+    simnet.callPublicFn(contractName, "draw-numbers", [], funder);
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-claim-funds",
+      [],
+      exploiter
+    );
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("should be possible for a lottery funder to claim their fund plus their part on the lottery sell after a lottery is finished", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);

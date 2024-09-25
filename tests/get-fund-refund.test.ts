@@ -27,6 +27,25 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("get fund refund", () => {
+  it("should not allow contracts to call", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-get-fund-refund) (contract-call? '${deployer}.${contractName} get-fund-refund))`;
+
+    simnet.deployContract(contractName, contract, null, deployer);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    simnet.callPublicFn(contractName, "fund", [], funder);
+    simnet.callPublicFn(contractName, "cancel", [], felix);
+    const { result: getTicketRefundResult } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-get-fund-refund",
+      [],
+      funder
+    );
+    expect(getTicketRefundResult).toBeErr(uintCV(2001));
+  });
+
   it("is possible to get a pool contribution refund on a cancelled lottery", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);

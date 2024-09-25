@@ -24,6 +24,26 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("cancel", () => {
+  it("should not allow contracts to call", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-cancel) (contract-call? '${deployer}.${contractName} cancel))`;
+    simnet.deployContract(contractName, contract, null, deployer);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    simnet.callPublicFn(contractName, "fund", [], deployer);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+    simnet.callPublicFn(contractName, "start", [], deployer);
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-cancel",
+      [],
+      exploiter
+    );
+
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("can only be cancelled by the lottery admin", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);

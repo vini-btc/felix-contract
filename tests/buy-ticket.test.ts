@@ -24,6 +24,26 @@ const contractName = `felix-${defaultContractArgs.name}`;
 const buyBlockMargin = 6;
 
 describe("buy tickets", () => {
+  it("should not allow contracts to call", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-buy-ticket (recipient principal) (nums uint)) (contract-call? '${creator}.${contractName} buy-ticket recipient nums))`;
+    simnet.deployContract(contractName, contract, null, creator);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    simnet.callPublicFn(contractName, "fund", [], creator);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+    simnet.callPublicFn(contractName, "start", [], creator);
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-buy-ticket",
+      [principalCV(exploiter), uintCV(1245)],
+      exploiter
+    );
+
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("should allow a player to buy tickets", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);

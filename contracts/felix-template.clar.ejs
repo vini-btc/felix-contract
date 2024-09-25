@@ -54,6 +54,7 @@
 (define-constant err-not-funder (err u1001))
 (define-constant err-refund-already-claimed (err u1002))
 (define-constant err-admin-only (err u2000))
+(define-constant err-standard-principal-only (err u2001))
 (define-constant err-cant-burn-winning-ticket (err u3000))
 
 (define-constant available-contract-status
@@ -73,6 +74,10 @@
     (is-some (map-get? funders test-principal)))
 (define-private (is-funded)
     (> (var-get funder-count) u0))
+
+(define-private (is-standard-principal-call)
+    (is-none (get name (unwrap! (principal-destruct? contract-caller) false))))
+
 (define-private (is-admin (test-principal principal)) (is-eq (var-get admin) test-principal))
 
 (define-private (pick-lottery-numbers (seed uint))
@@ -119,6 +124,7 @@
     (let
         ((last-funder-count (var-get funder-count))
         (current-prize (var-get prize-pool))) 
+    (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-in-funding) err-invalid-status)
     (asserts! (> start-block-height block-height) err-start-too-close)
     (asserts! (< block-height (- end-block-height end-cooldown)) err-end-too-close)
@@ -133,6 +139,7 @@
 
 (define-public (start)
     (begin
+        (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (is-in-funding) err-invalid-status)
         (asserts! (> block-height start-block-height) err-start-too-early)
         (asserts! (> end-block-height (+ start-block-height start-block-buffer)) err-end-too-close)
@@ -143,12 +150,14 @@
 
 (define-public (cancel)
     (begin
+        (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (is-admin contract-caller) err-admin-only)
         (var-set current-status (cancelled-status))
         (ok true)))
 
 (define-public (draw-numbers)
     (begin 
+        (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (is-active) err-invalid-status)
         (asserts! (> block-height end-block-height) err-not-ended-yet)
         (let
@@ -164,6 +173,7 @@
     (let
         ((ticket-id (+ (var-get last-ticket-id) u1))
         (current-sells (var-get sold-tickets-pool)))
+    (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-active) err-invalid-status)
     (asserts! (< block-height (- end-block-height end-cooldown)) err-end-too-close)
     (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
@@ -184,6 +194,7 @@
     (let
         ((alleged-winner-principal contract-caller)
         (prize (var-get prize-pool)))
+    (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-won) err-invalid-status)
     (asserts! (is-eq (unwrap! (nft-get-owner? felix-<%= name %> ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
@@ -195,6 +206,7 @@
     (let
         ((claimer contract-caller)
         (has-claimed (map-get? funders claimer)))
+    (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-funder claimer) err-not-funder)
     (asserts! (or (is-won) (is-finished)) err-invalid-status)
     (asserts! (not (unwrap! has-claimed err-not-funder)) err-funder-already-claimed)
@@ -210,6 +222,7 @@
 (define-public (get-ticket-refund (ticket-id uint))
     (let
         ((ticket-owner contract-caller))
+    (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-eq (unwrap! (nft-get-owner? felix-<%= name %> ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-cancelled) err-invalid-status)
     (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
@@ -217,18 +230,21 @@
     (ok ticket-id)))
 
 (define-public (get-fund-refund)
-    (let
-        ((claimer contract-caller)
-        (has-refunded (unwrap! (map-get? funders claimer) err-not-funder)))
-    (asserts! (is-cancelled) err-invalid-status)
-    (asserts! (is-funder claimer) err-not-funder)
-    (asserts! (not has-refunded) err-refund-already-claimed)
-    (try! (as-contract (stx-transfer? slot-size contract-principal claimer)))
-    (map-set funders claimer true)
-    (ok true)))
+    (begin
+        (asserts! (is-standard-principal-call) err-standard-principal-only)
+        (asserts! (is-cancelled) err-invalid-status)
+        (let
+            ((claimer contract-caller)
+            (has-refunded (unwrap! (map-get? funders claimer) err-not-funder)))
+        (asserts! (is-funder claimer) err-not-funder)
+        (asserts! (not has-refunded) err-refund-already-claimed)
+        (try! (as-contract (stx-transfer? slot-size contract-principal claimer)))
+        (map-set funders claimer true)
+        (ok true))))
 
 (define-public (burn-ticket (ticket-id uint))
     (begin
+        (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (or (is-finished) (is-won)) err-invalid-status)
         (asserts! (not (is-eq (default-to u0 (var-get winner)) ticket-id)) err-cant-burn-winning-ticket)
         ;; #[allow(unchecked_data)]
@@ -236,6 +252,7 @@
 
 (define-public (update-admin (new-admin principal))
     (begin
+        (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (is-admin contract-caller) err-admin-only)
         ;; #[allow(unchecked_data)]
         (var-set admin new-admin)

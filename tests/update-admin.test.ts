@@ -25,6 +25,23 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("update-admin", () => {
+  it("should not allow contracts to call", async () => {
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-update-admin (new-admin principal)) (contract-call? '${creator}.${contractName} update-admin new-admin))`;
+    const contract = await generateContract(defaultContractArgs);
+    simnet.deployContract(contractName, contract, null, creator);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-update-admin",
+      [principalCV(newAdmin)],
+      exploiter
+    );
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("can only be updated by the current admin", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, admin);
