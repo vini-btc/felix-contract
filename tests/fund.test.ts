@@ -26,6 +26,23 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("fund", () => {
+  it("should not allow contracts to call", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-fund) (contract-call? '${deployer}.${contractName} fund))`;
+    simnet.deployContract(contractName, contract, null, deployer);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-fund",
+      [],
+      exploiter
+    );
+
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("a contract can only be funded if it is not started", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);

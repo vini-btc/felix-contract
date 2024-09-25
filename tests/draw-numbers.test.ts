@@ -30,6 +30,26 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("draw numbers", () => {
+  it("should not allow contracts to call", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-draw-number) (contract-call? '${creator}.${contractName} draw-numbers))`;
+    simnet.deployContract(contractName, contract, null, creator);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    simnet.callPublicFn(contractName, "fund", [], creator);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+    simnet.callPublicFn(contractName, "start", [], creator);
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-draw-number",
+      [],
+      exploiter
+    );
+
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("should only allow drawing the numbers of an active lottery", async () => {
     const contract = await generateContract(defaultContractArgs);
     const drawer = accounts.get("wallet_7")!;

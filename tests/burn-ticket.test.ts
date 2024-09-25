@@ -6,7 +6,7 @@ const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
 const creator = accounts.get("deployer")!;
 const ticketBuyer = accounts.get("wallet_2")!;
-const ticketBuyer2 = accounts.get("wallet_2")!;
+const ticketBuyer2 = accounts.get("wallet_3")!;
 const fee = BigInt(20);
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
@@ -25,6 +25,33 @@ const defaultContractArgs: GenerateContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("burn tickets", () => {
+  it("should not allow contracts to call", async () => {
+    const contract = await generateContract(defaultContractArgs);
+    const exploiter = accounts.get("wallet_7")!;
+    const proxyContractName = "felix-proxy";
+    const proxyContract = `(define-public (proxy-burn-ticket (ticket-id uint)) (contract-call? '${creator}.${contractName} burn-ticket ticket-id))`;
+    simnet.deployContract(contractName, contract, null, creator);
+    simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+    simnet.callPublicFn(contractName, "fund", [], creator);
+    simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
+    simnet.callPublicFn(contractName, "start", [], creator);
+    simnet.callPublicFn(
+      contractName,
+      "buy-ticket",
+      [principalCV(ticketBuyer), uintCV(1245)],
+      ticketBuyer
+    );
+    simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+    simnet.callPublicFn(contractName, "draw-numbers", [], creator);
+    const { result } = simnet.callPublicFn(
+      `${exploiter}.${proxyContractName}`,
+      "proxy-burn-ticket",
+      [uintCV(1)],
+      exploiter
+    );
+    expect(result).toBeErr(uintCV(2001));
+  });
+
   it("should allow a player to burn their tickets if the lottery is finished", async () => {
     const contract = await generateContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
