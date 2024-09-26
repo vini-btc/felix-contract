@@ -164,7 +164,6 @@
             ;; We're using the citycoin-vrf-v2 contract to get a random number
             ((random-number (unwrap! (contract-call? 'SPSCWDV3RKV5ZRN1FQD84YE1NQFEDJ9R1F4DYQ11.citycoin-vrf-v2 get-rnd (- end-block-height u1)) err-unable-to-get-random-seed))
             (lottery-numbers (unwrap-panic (pick-lottery-numbers random-number))))
-        (print { rnd: random-number, lot: lottery-numbers })
         (var-set drawn-number (some lottery-numbers))
         (try! (end-lottery))
         (ok lottery-numbers))))
