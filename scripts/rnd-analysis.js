@@ -4,9 +4,9 @@ import fs from "fs";
 import { setTimeout } from "timers/promises";
 
 (async () => {
-  let blockHeight = 150000;
+  let blockHeight = 10;
   fs.writeFileSync(path.resolve("results.csv"), "height,rnd\n");
-  while (blockHeight < 167392) {
+  while (blockHeight < 167529) {
     const body = JSON.stringify({
       sender: "SP187Y7NRSG3T9Z9WTSWNEN3XRV1YSJWS81C7JKV7",
       arguments: [cvToHex(uintCV(blockHeight))],
@@ -32,6 +32,6 @@ import { setTimeout } from "timers/promises";
       `${blockHeight},${result}\n`
     );
     blockHeight = blockHeight + 1;
-    await setTimeout(250);
+    await setTimeout(100);
   }
 })();
