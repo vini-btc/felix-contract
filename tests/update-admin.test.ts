@@ -7,10 +7,12 @@ const felix = accounts.get("felix")!;
 const admin = accounts.get("deployer")!;
 const creator = accounts.get("wallet_1")!;
 const newAdmin = accounts.get("wallet_5")!;
-
+const deployer = accounts.get("deployer")!;
+const felixRandomContract = `${deployer}.felix-meta-v2`;
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
   felix,
+  felixRandomContract,
   fee: BigInt(20),
   availableTickets: 5,
   ticketPrice: BigInt(10),
@@ -23,7 +25,6 @@ const defaultContractArgs: GenerateContractArgs = {
   startBlockBuffer: 0,
 };
 const contractName = `felix-${defaultContractArgs.name}`;
-
 describe("update-admin", () => {
   it("should not allow contracts to call", async () => {
     const exploiter = accounts.get("wallet_7")!;

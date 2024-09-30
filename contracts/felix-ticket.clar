@@ -1,20 +1,20 @@
-;; felix-<%= name %>
+;; felix-felix-v5
 ;; v5
 ;; Learn more at https://felixapp.xyz/
 ;; ---
 ;;
-(define-constant felix '<%= felix %>)
-(define-constant fee u<%= fee %>)
-(define-constant difficulty u<%= difficulty %>)
-(define-constant ticket-price u<%= ticketPrice %>)
-(define-constant number-of-tickets u<%= availableTickets %>)
-(define-constant slot-size u<%= slotSize %>)
-(define-constant number-of-slots u<%= slots %>)
-(define-constant start-block-height u<%= startBlock %>)
-(define-constant start-block-buffer u<%= startBlockBuffer %>)
-(define-constant end-block-height u<%= endBlock %>)
+(define-constant felix 'ST3RDC4C9B0A2FG8B7DQ9MBTFPYQZNDAVC9AC7MAF)
+(define-constant fee u150000)
+(define-constant difficulty u4)
+(define-constant ticket-price u1500000)
+(define-constant number-of-tickets u10000)
+(define-constant slot-size u2000000000000)
+(define-constant number-of-slots u2)
+(define-constant start-block-height u42252)
+(define-constant start-block-buffer u10)
+(define-constant end-block-height u42273)
 (define-constant end-cooldown u6)
-(define-non-fungible-token felix-<%= name %> uint)
+(define-non-fungible-token felix-felix-v5 uint)
 
 (define-constant contract-principal (as-contract tx-sender))
 
@@ -116,7 +116,7 @@
     (ok (map-get? numbersToTicketIds num-to-check)))
 
 (define-read-only (get-owner (token-id uint))
-    (ok (nft-get-owner? felix-<%= name %> token-id)))
+    (ok (nft-get-owner? felix-felix-v5 token-id)))
 
 (define-read-only (get-status) (ok (var-get current-status)))
 
@@ -162,7 +162,7 @@
         (asserts! (> block-height end-block-height) err-not-ended-yet)
         (let
             ;; We're using the citycoin-vrf-v2 contract to get a random number
-            ((random-number (unwrap! (contract-call? '<%= felixRandomContract %> get-rnd (- end-block-height u1)) err-unable-to-get-random-seed))
+            ((random-number (unwrap! (contract-call? 'SPSCWDV3RKV5ZRN1FQD84YE1NQFEDJ9R1F4DYQ11.citycoin-vrf-v2 get-rnd (- end-block-height u1)) err-unable-to-get-random-seed))
             (lottery-numbers (unwrap-panic (pick-lottery-numbers random-number))))
         (var-set drawn-number (some lottery-numbers))
         (try! (end-lottery))
@@ -184,7 +184,7 @@
     (try! (stx-transfer? ticket-price contract-caller contract-principal))
     (try! (stx-transfer? fee contract-caller (var-get admin)))
     ;; #[allow(unchecked_data)]
-    (try! (nft-mint? felix-<%= name %> ticket-id recipient))
+    (try! (nft-mint? felix-felix-v5 ticket-id recipient))
     (var-set last-ticket-id ticket-id)
     (var-set sold-tickets-pool (+ current-sells ticket-price))
     (ok ticket-id)))
@@ -195,10 +195,10 @@
         (prize (var-get prize-pool)))
     (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-won) err-invalid-status)
-    (asserts! (is-eq (unwrap! (nft-get-owner? felix-<%= name %> ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-felix-v5 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-eq ticket-id (unwrap-panic (var-get winner))) err-not-ticket-winner)
     (try! (as-contract (stx-transfer? prize contract-principal alleged-winner-principal)))
-    (try! (nft-burn? felix-<%= name %> ticket-id alleged-winner-principal))
+    (try! (nft-burn? felix-felix-v5 ticket-id alleged-winner-principal))
     (ok true)))
 
 (define-public (claim-funds)
@@ -222,10 +222,10 @@
     (let
         ((ticket-owner contract-caller))
     (asserts! (is-standard-principal-call) err-standard-principal-only)
-    (asserts! (is-eq (unwrap! (nft-get-owner? felix-<%= name %> ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
+    (asserts! (is-eq (unwrap! (nft-get-owner? felix-felix-v5 ticket-id) err-inexistent-ticket-id) contract-caller) err-not-ticket-owner)
     (asserts! (is-cancelled) err-invalid-status)
     (try! (as-contract (stx-transfer? ticket-price contract-principal ticket-owner)))
-    (try! (nft-burn? felix-<%= name %> ticket-id ticket-owner))
+    (try! (nft-burn? felix-felix-v5 ticket-id ticket-owner))
     (ok ticket-id)))
 
 (define-public (get-fund-refund)
@@ -247,7 +247,7 @@
         (asserts! (or (is-finished) (is-won)) err-invalid-status)
         (asserts! (not (is-eq (default-to u0 (var-get winner)) ticket-id)) err-cant-burn-winning-ticket)
         ;; #[allow(unchecked_data)]
-        (nft-burn? felix-<%= name %> ticket-id contract-caller)))
+        (nft-burn? felix-felix-v5 ticket-id contract-caller)))
 
 (define-public (update-admin (new-admin principal))
     (begin

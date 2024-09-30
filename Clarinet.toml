@@ -10,10 +10,17 @@ contract_id = 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait'
 
 [[project.requirements]]
 contract_id = 'SPSCWDV3RKV5ZRN1FQD84YE1NQFEDJ9R1F4DYQ11.citycoin-vrf-v2'
+
 [contracts.felix-meta]
 path = 'contracts/felix-meta.clar'
 clarity_version = 2
 epoch = 2.5
+
+[contracts.felix-meta-v2]
+path = 'contracts/felix-meta-v2.clar'
+clarity_version = 2
+epoch = 2.5
+
 [repl.analysis]
 passes = ['check_checker']
 
