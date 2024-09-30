@@ -10,6 +10,8 @@ import {
 import { GenerateContractArgs, generateContract } from "../contract-helper";
 
 const accounts = simnet.getAccounts();
+const deployer = accounts.get("deployer")!;
+const felixRandomContract = `${deployer}.felix-meta-v2`;
 const felix = accounts.get("felix")!;
 const creator = accounts.get("deployer")!;
 const fee = BigInt(20);
@@ -17,6 +19,7 @@ const defaultContractArgs: GenerateContractArgs = {
   name: "test",
   felix,
   fee,
+  felixRandomContract,
   availableTickets: 5,
   ticketPrice: BigInt(10),
   difficulty: 5,

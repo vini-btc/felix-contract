@@ -67,4 +67,9 @@ plan:
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/felix-meta.clar
             clarity-version: 2
+        - emulated-contract-publish:
+            contract-name: felix-meta-v2
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/felix-meta-v2.clar
+            clarity-version: 2
       epoch: "2.5"

@@ -4,17 +4,18 @@ import { GenerateContractArgs, generateContract } from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
-const deployer = accounts.get("deployer")!;
 const funder = accounts.get("wallet_1")!;
 const ticketBuyer = accounts.get("wallet_2")!;
 const winner = accounts.get("wallet_3")!;
 const secondFunder = accounts.get("wallet_4")!;
 const thirdFunder = accounts.get("wallet_5")!;
 const notAFunder = accounts.get("wallet_6")!;
-
+const deployer = accounts.get("deployer")!;
+const felixRandomContract = `${deployer}.felix-meta-v2`;
 const defaultContractArgs: GenerateContractArgs = {
   name: "test",
   felix,
+  felixRandomContract,
   fee: BigInt(20),
   availableTickets: 100,
   ticketPrice: BigInt(10),
