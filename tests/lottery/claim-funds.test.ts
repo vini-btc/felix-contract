@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { principalCV, trueCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -34,7 +37,7 @@ describe("claim-funds", () => {
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-claim-funds) (contract-call? '${deployer}.${contractName} claim-funds))`;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
     simnet.callPublicFn(contractName, "fund", [], funder);
@@ -58,7 +61,7 @@ describe("claim-funds", () => {
   });
 
   it("should be possible for a lottery funder to claim their fund plus their part on the lottery sell after a lottery is finished", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -99,7 +102,7 @@ describe("claim-funds", () => {
   });
 
   it("should be possible for a lottery funder to claim their their part on the lottery after a lottery is won", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -147,7 +150,7 @@ describe("claim-funds", () => {
   });
 
   it("should be possible for multiple funders to get their correct part of the lottery pool after the lottery is finished", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.callPublicFn(contractName, "fund", [], secondFunder);
@@ -190,7 +193,7 @@ describe("claim-funds", () => {
   });
 
   it("should only be possible to claim funds if you are a funder", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -217,7 +220,7 @@ describe("claim-funds", () => {
   });
 
   it("should only be possible to claim your funds once", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);

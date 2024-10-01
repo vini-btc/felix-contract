@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { principalCV, trueCV, uintCV } from "@stacks/transactions";
-import { generateContract, GenerateContractArgs } from "../contract-helper";
+import {
+  generateLotteryContract,
+  GenerateContractArgs,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -29,7 +32,7 @@ const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("burn tickets", () => {
   it("should not allow contracts to call", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-burn-ticket (ticket-id uint)) (contract-call? '${creator}.${contractName} burn-ticket ticket-id))`;
@@ -56,7 +59,7 @@ describe("burn tickets", () => {
   });
 
   it("should allow a player to burn their tickets if the lottery is finished", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -95,7 +98,7 @@ describe("burn tickets", () => {
   });
 
   it("should allow a player to burn their tickets if the lottery is won and the ticket is not the winning ticket", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -142,7 +145,7 @@ describe("burn tickets", () => {
   });
 
   it("should not allow a player to burn their tickets if the lottery is active", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -166,7 +169,7 @@ describe("burn tickets", () => {
   });
 
   it("should not allow a player to burn their tickets if the ticket is the winning one", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
