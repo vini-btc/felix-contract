@@ -99,7 +99,7 @@ export const generateRaffleContract = (
       felixRandomContract: args.felixRandomContract,
     },
     {
-      escape: (str) => str,
+      escape: (str) => str.replace("(", "").replace(")", "").replace(/'/g, ""),
     }
   );
 };
