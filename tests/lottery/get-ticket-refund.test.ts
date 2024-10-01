@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { boolCV, principalCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -29,7 +32,7 @@ const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("get ticket refund", () => {
   it("should not allow contracts to call", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-get-ticket-refund (ticket-id uint)) (contract-call? '${deployer}.${contractName} get-ticket-refund ticket-id))`;
@@ -56,7 +59,7 @@ describe("get ticket refund", () => {
   });
 
   it("is possible to get a ticket refund on a cancelled lottery", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
     expect(result).toBeOk(boolCV(true));
@@ -106,7 +109,7 @@ describe("get ticket refund", () => {
   });
 
   it("is only possible to get a ticket refund once", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
@@ -134,7 +137,7 @@ describe("get ticket refund", () => {
   });
 
   it("is only possible to get a refund for a ticket if the lottery was cancelled", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
@@ -164,7 +167,7 @@ describe("get ticket refund", () => {
   });
 
   it("is only possible to get a refund for a ticket if you are the ticket owner", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
@@ -186,7 +189,7 @@ describe("get ticket refund", () => {
   });
 
   it("is possible for multiple ticket owners to get their ticket refund", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock);

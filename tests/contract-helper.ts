@@ -44,7 +44,7 @@ const ContractArgs = z
 
 export type GenerateContractArgs = z.infer<typeof ContractArgs>;
 
-export const generateContract = (
+export const generateLotteryContract = (
   input: GenerateContractArgs
 ): Promise<string> => {
   const args = ContractArgs.parse(input);

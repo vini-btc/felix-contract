@@ -7,7 +7,10 @@ import {
   stringAsciiCV,
   uintCV,
 } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const deployer = accounts.get("deployer")!;
@@ -34,7 +37,7 @@ const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("draw numbers", () => {
   it("should not allow contracts to call", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-draw-number) (contract-call? '${creator}.${contractName} draw-numbers))`;
@@ -54,7 +57,7 @@ describe("draw numbers", () => {
   });
 
   it("should only allow drawing the numbers of an active lottery", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const drawer = accounts.get("wallet_7")!;
     simnet.deployContract(contractName, contract, null, creator);
     const { result: result1 } = simnet.callPublicFn(
@@ -103,7 +106,7 @@ describe("draw numbers", () => {
   });
 
   it("should always pick the vrf-seed from the same set tenure height", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const drawer = accounts.get("wallet_7")!;
 
     simnet.deployContract(contractName, contract, null, creator);
@@ -130,7 +133,7 @@ describe("draw numbers", () => {
   });
 
   it("should finish the lottery after drawing the numbers and the numbers should be available when there are no winners available", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const drawer = accounts.get("wallet_7")!;
     const player = accounts.get("wallet_3")!;
     simnet.deployContract(contractName, contract, null, creator);
@@ -178,7 +181,7 @@ describe("draw numbers", () => {
   });
 
   it("should finish the lottery after drawing the numbers and the numbers and the winner should be available when it was won", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const drawer = accounts.get("wallet_7")!;
     const player = accounts.get("wallet_3")!;
     simnet.deployContract(contractName, contract, null, creator);

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { boolCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -28,7 +31,7 @@ const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("fund", () => {
   it("should not allow contracts to call", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-fund) (contract-call? '${deployer}.${contractName} fund))`;
@@ -45,7 +48,7 @@ describe("fund", () => {
   });
 
   it("a contract can only be funded if it is not started", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
 
     const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
@@ -64,7 +67,7 @@ describe("fund", () => {
   });
 
   it("a contract can only be funded if it is not ended", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
 
     simnet.callPublicFn(contractName, "fund", [], funder);
@@ -85,7 +88,7 @@ describe("fund", () => {
   });
 
   it("a contract can only be funded if there are still slots available", async () => {
-    const contract = await generateContract({
+    const contract = await generateLotteryContract({
       ...defaultContractArgs,
       slots: 2,
     });
@@ -114,7 +117,7 @@ describe("fund", () => {
   });
 
   it("a contract can only be funded if the funder is not a funder already", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result: firstFundResult } = simnet.callPublicFn(
       contractName,
@@ -133,7 +136,7 @@ describe("fund", () => {
   });
 
   it("a contract should transfer the slot size from the funder to itself when funding", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { events } = simnet.callPublicFn(contractName, "fund", [], funder);
     const transfer = events[0];
@@ -145,7 +148,7 @@ describe("fund", () => {
   });
 
   it("the contract prize pool should be updated with every fund", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result: prizePoolBefore } = simnet.callReadOnlyFn(
       contractName,
@@ -169,7 +172,7 @@ describe("fund", () => {
   });
 
   it("the contract can only be funded if the start block is in the future", async () => {
-    const contract = await generateContract({
+    const contract = await generateLotteryContract({
       ...defaultContractArgs,
       startBlock: 10,
       endBlock: 20,

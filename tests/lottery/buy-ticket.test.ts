@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { boolCV, principalCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -28,7 +31,7 @@ const buyBlockMargin = 6;
 
 describe("buy tickets", () => {
   it("should not allow contracts to call", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-buy-ticket (recipient principal) (nums uint)) (contract-call? '${creator}.${contractName} buy-ticket recipient nums))`;
@@ -48,7 +51,7 @@ describe("buy tickets", () => {
   });
 
   it("should allow a player to buy tickets", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
@@ -79,7 +82,7 @@ describe("buy tickets", () => {
   });
 
   it("should not allow a player to buy a ticket when the contract is still in funding", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     const ticketBuyer = accounts.get("wallet_1")!;
@@ -94,7 +97,7 @@ describe("buy tickets", () => {
   });
 
   it("should not allow a player to buy a ticket when all tickets were sold", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
@@ -151,7 +154,7 @@ describe("buy tickets", () => {
 
   it("should not allow a player to buy a ticket after five blocks before the end of the contract", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     // Block height: 1
     simnet.deployContract(contractName, contract, null, creator);
     // Block height: 2
@@ -184,7 +187,7 @@ describe("buy tickets", () => {
 
   it("should transfer the ticket price to the contract, a fee to the felix contract and mint a new ticket", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
 
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
@@ -217,7 +220,7 @@ describe("buy tickets", () => {
   it("should update the sold tickets pool after buying a ticket", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
     const caller = accounts.get("wallet_3")!;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
 
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
@@ -262,7 +265,7 @@ describe("buy tickets", () => {
   it("should not allow a player to buy a ticket with the same numbers as another player", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
     const secondTicketBuyer = accounts.get("wallet_5")!;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
 
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
@@ -289,7 +292,7 @@ describe("buy tickets", () => {
 
   it("should correctly assign the played number to the ticket id", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
 
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);
@@ -314,7 +317,7 @@ describe("buy tickets", () => {
 
   it("should not allow buying tickets for a number bigger than what would be drawn with given difficulty but allow a smaller one", async () => {
     const ticketBuyer = accounts.get("wallet_1")!;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
 
     simnet.deployContract(contractName, contract, null, creator);
     simnet.callPublicFn(contractName, "fund", [], creator);

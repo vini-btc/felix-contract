@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { trueCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -29,7 +32,7 @@ describe("start", () => {
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-start) (contract-call? '${deployer}.${contractName} start))`;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
     simnet.callPublicFn(contractName, "fund", [], funder);
@@ -44,7 +47,7 @@ describe("start", () => {
   });
 
   it("can only be started from its defined start block", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlock();
@@ -66,7 +69,7 @@ describe("start", () => {
   });
 
   it("can only be started if it was already funded", async () => {
-    const contract = await generateContract({
+    const contract = await generateLotteryContract({
       ...defaultContractArgs,
       startBlockBuffer: 0,
     });
@@ -82,7 +85,7 @@ describe("start", () => {
   });
 
   it("can only be started if it was in funding before", async () => {
-    const contract = await generateContract({
+    const contract = await generateLotteryContract({
       ...defaultContractArgs,
       startBlockBuffer: 0,
     });
@@ -103,7 +106,7 @@ describe("start", () => {
       startBlock: simnet.blockHeight + 10,
       startBlockBuffer: 0,
     };
-    const secondContract = await generateContract(secondContractArgs);
+    const secondContract = await generateLotteryContract(secondContractArgs);
     const secondContractName = `felix-test2`;
     simnet.deployContract(secondContractName, secondContract, null, deployer);
     simnet.callPublicFn(secondContractName, "fund", [], funder);
@@ -119,7 +122,7 @@ describe("start", () => {
   });
 
   it("can only be started if the end block is a block in the future", async () => {
-    const contract = await generateContract({
+    const contract = await generateLotteryContract({
       ...defaultContractArgs,
       startBlock: 50,
       endBlock: 100,

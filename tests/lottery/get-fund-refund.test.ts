@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { boolCV, trueCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -28,7 +31,7 @@ const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("get fund refund", () => {
   it("should not allow contracts to call", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-get-fund-refund) (contract-call? '${deployer}.${contractName} get-fund-refund))`;
@@ -47,7 +50,7 @@ describe("get fund refund", () => {
   });
 
   it("is possible to get a pool contribution refund on a cancelled lottery", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
     expect(result).toBeOk(boolCV(true));
@@ -74,7 +77,7 @@ describe("get fund refund", () => {
   });
 
   it("is only possible to get a pool contribution refund once", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
     expect(result).toBeOk(boolCV(true));
@@ -98,7 +101,7 @@ describe("get fund refund", () => {
   });
 
   it("is only possible to get a refund for a contribution if the lottery was cancelled", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
     expect(result).toBeOk(trueCV());
@@ -146,7 +149,7 @@ describe("get fund refund", () => {
   });
 
   it("is only possible to get a refund for a lottery if the caller is funder of the lottery", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
     expect(result).toBeOk(boolCV(true));
@@ -170,7 +173,7 @@ describe("get fund refund", () => {
   });
 
   it("is possible for multiple funders to get their refunds", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.callPublicFn(contractName, "fund", [], anotherFunder);

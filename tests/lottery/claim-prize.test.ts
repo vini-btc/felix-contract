@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { principalCV, trueCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -31,7 +34,7 @@ describe("claim-prize", () => {
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-claim-prize (ticket-id uint)) (contract-call? '${deployer}.${contractName} claim-prize ticket-id))`;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
     simnet.callPublicFn(contractName, "fund", [], funder);
@@ -54,7 +57,7 @@ describe("claim-prize", () => {
     expect(claim).toBeErr(uintCV(2001));
   });
   it('should only be possible to claim the prize of a "won" lottery', async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     const { result: fund } = simnet.callPublicFn(
       contractName,
@@ -145,7 +148,7 @@ describe("claim-prize", () => {
   });
 
   it("should only allow the prize to be claimed once", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -177,7 +180,7 @@ describe("claim-prize", () => {
   });
 
   it("should only allow the winning ticket owner to claim the prize", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.mineEmptyBlocks(defaultContractArgs.startBlock - simnet.blockHeight);
@@ -222,7 +225,7 @@ describe("claim-prize", () => {
   });
 
   it("should transfer the prize to the ticket owner", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, deployer);
     simnet.callPublicFn(contractName, "fund", [], funder);
     simnet.callPublicFn(contractName, "claim-prize", [uintCV(1)], winner);

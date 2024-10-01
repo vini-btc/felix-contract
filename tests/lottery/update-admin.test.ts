@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { principalCV, uintCV } from "@stacks/transactions";
-import { GenerateContractArgs, generateContract } from "../contract-helper";
+import {
+  GenerateContractArgs,
+  generateLotteryContract,
+} from "../contract-helper";
 
 const accounts = simnet.getAccounts();
 const felix = accounts.get("felix")!;
@@ -30,7 +33,7 @@ describe("update-admin", () => {
     const exploiter = accounts.get("wallet_7")!;
     const proxyContractName = "felix-proxy";
     const proxyContract = `(define-public (proxy-update-admin (new-admin principal)) (contract-call? '${creator}.${contractName} update-admin new-admin))`;
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, creator);
     simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
 
@@ -44,7 +47,7 @@ describe("update-admin", () => {
   });
 
   it("can only be updated by the current admin", async () => {
-    const contract = await generateContract(defaultContractArgs);
+    const contract = await generateLotteryContract(defaultContractArgs);
     simnet.deployContract(contractName, contract, null, admin);
     simnet.mineEmptyBlocks(1000);
     const { result: nonAdminCalling } = simnet.callPublicFn(
