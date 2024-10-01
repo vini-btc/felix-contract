@@ -65,3 +65,41 @@ export const generateLotteryContract = (
     startBlockBuffer: args.startBlockBuffer,
   });
 };
+
+const safeString = /^[a-z0-9-@]+$/;
+const RaffleArgs = z
+  .object({
+    entries: z.array(z.string().regex(safeString).max(40)).max(9999),
+    felix: z.string().refine(refinePrincipal, {
+      message: "Invalid principal format for felix",
+    }),
+    felixRandomContract: z.string().refine(refinePrincipal, {
+      message: "Invalid principal format for felix",
+    }),
+    name: z.string().regex(slugRegex, {
+      message:
+        "Name must be a valid slug: lowercase letters, numbers, and hyphens only. Cannot start or end with a hyphen.",
+    }),
+  })
+  .strict();
+
+export type GenerateRaffleArgs = z.infer<typeof RaffleArgs>;
+
+export const generateRaffleContract = (
+  input: GenerateRaffleArgs
+): Promise<string> => {
+  const args = RaffleArgs.parse(input);
+
+  return ejs.renderFile(
+    path.resolve("./contracts/raffle-template.clar.ejs"),
+    {
+      name: args.name,
+      entries: args.entries,
+      felix: args.felix,
+      felixRandomContract: args.felixRandomContract,
+    },
+    {
+      escape: (str) => str,
+    }
+  );
+};
