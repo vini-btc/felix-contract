@@ -17,7 +17,14 @@ const refinePrincipal = (value: string) => {
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const ContractArgs = z
+const escape = (str: string) => {
+  if (typeof str !== "string") {
+    return str;
+  }
+  return str.replace("(", "").replace(")", "");
+};
+
+const LotteryContractArgs = z
   .object({
     availableTickets: z.number().int().positive(),
     difficulty: z.number().int().min(2).max(10),
@@ -42,28 +49,34 @@ const ContractArgs = z
   })
   .strict();
 
-export type GenerateContractArgs = z.infer<typeof ContractArgs>;
+export type GenerateFelixLotteryContractArgs = z.infer<
+  typeof LotteryContractArgs
+>;
 
 export const generateLotteryContract = (
-  input: GenerateContractArgs
+  input: GenerateFelixLotteryContractArgs
 ): Promise<string> => {
-  const args = ContractArgs.parse(input);
+  const args = LotteryContractArgs.parse(input);
 
-  return ejs.renderFile(path.resolve("./contracts/felix-template.clar.ejs"), {
-    availableTickets: args.availableTickets,
-    difficulty: args.difficulty,
-    endBlock: args.endBlock,
-    fee: args.fee,
-    felix: args.felix,
-    felixRandomContract: args.felixRandomContract,
-    name: args.name,
-    slotSize: args.slotSize,
-    slots: args.slots,
-    startBlock: args.startBlock,
-    ticketPrice: args.ticketPrice,
-    token: args.token,
-    startBlockBuffer: args.startBlockBuffer,
-  });
+  return ejs.renderFile(
+    path.resolve("./contracts/felix-template.clar.ejs"),
+    {
+      availableTickets: args.availableTickets,
+      difficulty: args.difficulty,
+      endBlock: args.endBlock,
+      fee: args.fee,
+      felix: args.felix,
+      felixRandomContract: args.felixRandomContract,
+      name: args.name,
+      slotSize: args.slotSize,
+      slots: args.slots,
+      startBlock: args.startBlock,
+      ticketPrice: args.ticketPrice,
+      token: args.token,
+      startBlockBuffer: args.startBlockBuffer,
+    },
+    { escape }
+  );
 };
 
 const safeString = /^[a-z0-9-@]+$/;
@@ -98,8 +111,56 @@ export const generateRaffleContract = (
       felix: args.felix,
       felixRandomContract: args.felixRandomContract,
     },
+    { escape }
+  );
+};
+
+const NftLotteryArgs = z.object({
+  availableTickets: z.number().int().positive(),
+  difficulty: z.number().int().min(2).max(10),
+  duration: z.number().int().positive(),
+  fee: z.bigint(),
+  felix: z
+    .string()
+    .refine(refinePrincipal, { message: "Invalid principal format for felix" }),
+  nftContract: z
+    .string()
+    .refine(refinePrincipal, { message: "Invalid principal format for felix" }),
+  felixRandomContract: z
+    .string()
+    .refine(refinePrincipal, { message: "Invalid principal format for felix" }),
+  name: z.string().regex(slugRegex, {
+    message:
+      "Name must be a valid slug: lowercase letters, numbers, and hyphens only. Cannot start or end with a hyphen.",
+  }),
+  nftUid: z.number().int().positive(),
+  ticketPrice: z.bigint().positive(),
+  token: z.literal("STX"),
+});
+
+export type GenerateNftLotteryArgs = z.infer<typeof NftLotteryArgs>;
+
+export const generateNftLotteryContract = (
+  input: GenerateNftLotteryArgs
+): Promise<string> => {
+  const args = NftLotteryArgs.parse(input);
+
+  return ejs.renderFile(
+    path.resolve("./contracts/felix-nft-template.clar.ejs"),
     {
-      escape: (str) => str.replace("(", "").replace(")", "").replace(/'/g, ""),
-    }
+      availableTickets: args.availableTickets,
+      difficulty: args.difficulty,
+      duration: args.duration,
+      fee: args.fee,
+      felix: args.felix,
+      felixRandomContract: args.felixRandomContract,
+      name: args.name,
+      nftContract: args.nftContract,
+      nftUid: args.nftUid,
+      ticketPrice: args.ticketPrice,
+      ticketName: `felix-nft-${args.name}`,
+      token: args.token,
+    },
+    { escape }
   );
 };

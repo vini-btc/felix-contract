@@ -16,6 +16,16 @@ path = 'contracts/felix-meta.clar'
 clarity_version = 2
 epoch = 2.5
 
+[contracts.commission-trait]
+path = "contracts/commission-trait.clar"
+clarity_version = 2
+epoch = 2.5
+
+[contracts.sample-megapont-nft]
+path = "contracts/sample-megapont-nft.clar"
+clarity_version = 2
+epoch = 2.5
+
 [contracts.felix-meta-v2]
 path = 'contracts/felix-meta-v2.clar'
 clarity_version = 2
