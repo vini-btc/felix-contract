@@ -63,6 +63,11 @@ plan:
     - id: 1
       transactions:
         - emulated-contract-publish:
+            contract-name: commission-trait
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/commission-trait.clar
+            clarity-version: 2
+        - emulated-contract-publish:
             contract-name: felix-meta
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/felix-meta.clar
@@ -76,5 +81,10 @@ plan:
             contract-name: felix-raffle
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/felix-raffle.clar
+            clarity-version: 2
+        - emulated-contract-publish:
+            contract-name: sample-megapont-nft
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/sample-megapont-nft.clar
             clarity-version: 2
       epoch: "2.5"

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { generateRaffleContract } from "../contract-helper";
+import { generateRaffleContract } from "./contract-helper";
 import { someCV, stringAsciiCV, uintCV } from "@stacks/transactions";
 
 const accounts = simnet.getAccounts();
 const deployer = accounts.get("deployer")!;
 const felix = accounts.get("felix")!;
 const felixRandomContract = `${deployer}.felix-meta-v2`;
-const raffleName = "felix-nft";
+const raffleName = "the-raffle";
 const entries = [
   "vini-btc",
   "muneeb",
