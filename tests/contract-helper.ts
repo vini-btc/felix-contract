@@ -123,12 +123,12 @@ const NftLotteryArgs = z.object({
   felix: z
     .string()
     .refine(refinePrincipal, { message: "Invalid principal format for felix" }),
-  nftContract: z
-    .string()
-    .refine(refinePrincipal, { message: "Invalid principal format for felix" }),
-  felixRandomContract: z
-    .string()
-    .refine(refinePrincipal, { message: "Invalid principal format for felix" }),
+  nftContract: z.string().refine(refinePrincipal, {
+    message: "Invalid principal format for nft contract",
+  }),
+  felixRandomContract: z.string().refine(refinePrincipal, {
+    message: "Invalid principal format for random contract",
+  }),
   name: z.string().regex(slugRegex, {
     message:
       "Name must be a valid slug: lowercase letters, numbers, and hyphens only. Cannot start or end with a hyphen.",
