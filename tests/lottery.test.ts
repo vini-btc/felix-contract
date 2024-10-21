@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   boolCV,
   noneCV,
@@ -11,7 +11,7 @@ import {
 import {
   generateLotteryContract,
   GenerateFelixLotteryContractArgs,
-} from "../contract-helper";
+} from "./contract-helper";
 import { tx } from "@hirosystems/clarinet-sdk";
 
 const accounts = simnet.getAccounts();
@@ -48,14 +48,27 @@ const defaultContractArgs: GenerateFelixLotteryContractArgs = {
 const contractName = `felix-${defaultContractArgs.name}`;
 
 describe("felix lottery", () => {
+  beforeEach(() => {
+    simnet.setEpoch("3.0");
+  });
   describe("update-admin", () => {
     it("should not allow contracts to call", async () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-update-admin (new-admin principal)) (contract-call? '${creator}.${contractName} update-admin new-admin))`;
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
 
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -68,8 +81,13 @@ describe("felix lottery", () => {
 
     it("can only be updated by the current admin", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
-      simnet.mineEmptyBlocks(1000);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
+      simnet.mineEmptyBurnBlocks(1000);
       const { result: nonAdminCalling } = simnet.callPublicFn(
         contractName,
         "update-admin",
@@ -109,11 +127,21 @@ describe("felix lottery", () => {
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-start) (contract-call? '${deployer}.${contractName} start))`;
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight
       );
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -126,7 +154,12 @@ describe("felix lottery", () => {
 
     it("can only be started from its defined start block", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
       simnet.mineEmptyBlock();
       const { result: startBeforeStartBlock } = simnet.callPublicFn(
@@ -136,7 +169,7 @@ describe("felix lottery", () => {
         funder
       );
       expect(startBeforeStartBlock).toBeErr(uintCV(500));
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       const { result: startAfterStartBlock } = simnet.callPublicFn(
         contractName,
         "start",
@@ -151,9 +184,14 @@ describe("felix lottery", () => {
         ...defaultContractArgs,
         startBlockBuffer: 0,
       });
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       const { result: startBeforeFunding } = simnet.callPublicFn(
         contractName,
@@ -169,13 +207,20 @@ describe("felix lottery", () => {
         ...defaultContractArgs,
         startBlockBuffer: 0,
       });
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result } = simnet.callPublicFn(contractName, "start", [], funder);
       expect(result).toBeErr(uintCV(502));
@@ -184,17 +229,22 @@ describe("felix lottery", () => {
       const secondContractArgs = {
         ...defaultContractArgs,
         name: "test2",
-        endBlock: simnet.blockHeight + 10 + 50,
-        startBlock: simnet.blockHeight + 10,
+        endBlock: simnet.burnBlockHeight + 10 + 50,
+        startBlock: simnet.burnBlockHeight + 10,
         startBlockBuffer: 0,
       };
       const secondContract = await generateLotteryContract(secondContractArgs);
       const secondContractName = `felix-test2`;
-      simnet.deployContract(secondContractName, secondContract, null, deployer);
+      simnet.deployContract(
+        secondContractName,
+        secondContract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(secondContractName, "fund", [], funder);
       simnet.callPublicFn(secondContractName, "cancel", [], felix);
-      simnet.mineEmptyBlocks(
-        secondContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        secondContractArgs.startBlock - simnet.burnBlockHeight
       );
       const { result: cancelledLotteryResult } = simnet.callPublicFn(
         secondContractName,
@@ -211,9 +261,14 @@ describe("felix lottery", () => {
         startBlock: 50,
         endBlock: 100,
       });
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(100 - simnet.blockHeight + 1);
+      simnet.mineEmptyBurnBlocks(100 - simnet.burnBlockHeight + 1);
       const { result } = simnet.callPublicFn(contractName, "start", [], funder);
 
       expect(result).toBeErr(uintCV(300));
@@ -226,11 +281,21 @@ describe("felix lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-burn-ticket (ticket-id uint)) (contract-call? '${creator}.${contractName} burn-ticket ticket-id))`;
-      simnet.deployContract(contractName, contract, null, creator);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
@@ -239,7 +304,9 @@ describe("felix lottery", () => {
         [principalCV(ticketBuyer), uintCV(1245)],
         ticketBuyer
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], creator);
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -252,10 +319,15 @@ describe("felix lottery", () => {
 
     it("should allow a player to burn their tickets if the lottery is finished", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
@@ -264,7 +336,9 @@ describe("felix lottery", () => {
         [principalCV(ticketBuyer), uintCV(1245)],
         ticketBuyer
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], creator);
       const { result, events } = simnet.callPublicFn(
         contractName,
@@ -293,10 +367,15 @@ describe("felix lottery", () => {
 
     it("should allow a player to burn their tickets if the lottery is won and the ticket is not the winning ticket", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
@@ -313,7 +392,9 @@ describe("felix lottery", () => {
         [principalCV(ticketBuyer), uintCV(64807)],
         ticketBuyer2
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], creator);
       const { result, events } = simnet.callPublicFn(
         contractName,
@@ -342,10 +423,15 @@ describe("felix lottery", () => {
 
     it("should not allow a player to burn their tickets if the lottery is active", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
@@ -362,16 +448,23 @@ describe("felix lottery", () => {
         ticketBuyer
       );
       expect(result).toBeErr(uintCV(502));
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], creator);
     });
 
     it("should not allow a player to burn their tickets if the ticket is the winning one", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
@@ -380,7 +473,9 @@ describe("felix lottery", () => {
         [principalCV(ticketBuyer), uintCV(64807)],
         ticketBuyer
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], creator);
 
       const { result } = simnet.callPublicFn(
@@ -399,10 +494,20 @@ describe("felix lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-buy-ticket (recipient principal) (nums uint)) (contract-call? '${creator}.${contractName} buy-ticket recipient nums))`;
-      simnet.deployContract(contractName, contract, null, creator);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], creator);
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -416,9 +521,14 @@ describe("felix lottery", () => {
 
     it("should allow a player to buy tickets", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       const { result: startResult } = simnet.callPublicFn(
         contractName,
         "start",
@@ -447,7 +557,12 @@ describe("felix lottery", () => {
 
     it("should not allow a player to buy a ticket when the contract is still in funding", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
       const ticketBuyer = accounts.get("wallet_1")!;
       const { events, result } = simnet.callPublicFn(
@@ -462,9 +577,14 @@ describe("felix lottery", () => {
 
     it("should not allow a player to buy a ticket when all tickets were sold", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       const { result: startResult } = simnet.callPublicFn(
         contractName,
         "start",
@@ -497,20 +617,28 @@ describe("felix lottery", () => {
       const ticketBuyer = accounts.get("wallet_1")!;
       const contract = await generateLotteryContract(defaultContractArgs);
       // Block height: 1
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       // Block height: 2
       simnet.callPublicFn(contractName, "fund", [], creator);
       // Block height: 3
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       // Block height: 10
       simnet.callPublicFn(contractName, "start", [], creator);
       // Block height: 11
       const blocksUntillastBlockWithBuyAvailable =
-        defaultContractArgs.endBlock - buyBlockMargin - simnet.blockHeight - 1;
-      // We mine until one before the last available, since the buy transaction goes on the next block
-      simnet.mineEmptyBlocks(blocksUntillastBlockWithBuyAvailable - 1);
+        defaultContractArgs.endBlock -
+        buyBlockMargin -
+        simnet.burnBlockHeight -
+        1;
+
+      simnet.mineEmptyBurnBlocks(blocksUntillastBlockWithBuyAvailable);
       const { result: availableTicketResult } = simnet.callPublicFn(
         contractName,
         "buy-ticket",
@@ -518,6 +646,8 @@ describe("felix lottery", () => {
         ticketBuyer
       );
       expect(availableTicketResult).toBeOk(uintCV(1));
+
+      simnet.mineEmptyBurnBlock();
       const { result: unavailableTicketResult } = simnet.callPublicFn(
         contractName,
         "buy-ticket",
@@ -532,10 +662,15 @@ describe("felix lottery", () => {
       const ticketBuyer = accounts.get("wallet_1")!;
       const contract = await generateLotteryContract(defaultContractArgs);
 
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       const { events } = simnet.callPublicFn(
@@ -567,10 +702,15 @@ describe("felix lottery", () => {
       const caller = accounts.get("wallet_3")!;
       const contract = await generateLotteryContract(defaultContractArgs);
 
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
@@ -614,10 +754,15 @@ describe("felix lottery", () => {
       const secondTicketBuyer = accounts.get("wallet_5")!;
       const contract = await generateLotteryContract(defaultContractArgs);
 
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       // Buying ticket with: 1 2 3 4 5
@@ -643,10 +788,15 @@ describe("felix lottery", () => {
       const ticketBuyer = accounts.get("wallet_1")!;
       const contract = await generateLotteryContract(defaultContractArgs);
 
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
       // Buying ticket with: 1 2 3 4 5. Ticket id is one.
@@ -670,10 +820,15 @@ describe("felix lottery", () => {
       const ticketBuyer = accounts.get("wallet_1")!;
       const contract = await generateLotteryContract(defaultContractArgs);
 
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], creator);
 
@@ -702,10 +857,20 @@ describe("felix lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-cancel) (contract-call? '${deployer}.${contractName} cancel))`;
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], deployer);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], deployer);
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -719,7 +884,12 @@ describe("felix lottery", () => {
 
     it("can only be cancelled by the lottery admin", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
       simnet.mineEmptyBlock();
       simnet.callPublicFn(contractName, "start", [], funder);
@@ -754,11 +924,21 @@ describe("felix lottery", () => {
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-claim-funds) (contract-call? '${deployer}.${contractName} claim-funds))`;
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
@@ -767,7 +947,9 @@ describe("felix lottery", () => {
         [principalCV(ticketBuyer), uintCV(12300)],
         ticketBuyer
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -780,10 +962,15 @@ describe("felix lottery", () => {
 
     it("should be possible for a lottery funder to claim their fund plus their part on the lottery sell after a lottery is finished", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       // Buy 10 tickets
@@ -795,7 +982,9 @@ describe("felix lottery", () => {
           ticketBuyer
         );
       });
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
 
       const { result, events } = simnet.callPublicFn(
@@ -823,10 +1012,15 @@ describe("felix lottery", () => {
 
     it("should be possible for a lottery funder to claim their their part on the lottery after a lottery is won", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       // Buy 10 tickets
@@ -845,7 +1039,9 @@ describe("felix lottery", () => {
         [principalCV(ticketBuyer), uintCV(64807)],
         winner
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
 
       const { result, events } = simnet.callPublicFn(
@@ -873,12 +1069,17 @@ describe("felix lottery", () => {
 
     it("should be possible for multiple funders to get their correct part of the lottery pool after the lottery is finished", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
       simnet.callPublicFn(contractName, "fund", [], secondFunder);
       simnet.callPublicFn(contractName, "fund", [], thirdFunder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       // Buy 100 tickets
@@ -890,7 +1091,9 @@ describe("felix lottery", () => {
           ticketBuyer
         );
       });
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
 
       const { result, events } = simnet.callPublicFn(
@@ -918,10 +1121,15 @@ describe("felix lottery", () => {
 
     it("should only be possible to claim funds if you are a funder", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       // Buy 100 tickets
@@ -933,7 +1141,9 @@ describe("felix lottery", () => {
           ticketBuyer
         );
       });
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       simnet.callPublicFn(contractName, "claim-funds", [], funder);
       const { result } = simnet.callPublicFn(
@@ -947,10 +1157,15 @@ describe("felix lottery", () => {
 
     it("should only be possible to claim your funds once", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       // Buy 100 tickets
@@ -962,7 +1177,9 @@ describe("felix lottery", () => {
           ticketBuyer
         );
       });
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result } = simnet.callPublicFn(
         contractName,
@@ -980,11 +1197,21 @@ describe("felix lottery", () => {
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-claim-prize (ticket-id uint)) (contract-call? '${deployer}.${contractName} claim-prize ticket-id))`;
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
@@ -993,7 +1220,9 @@ describe("felix lottery", () => {
         [principalCV(winner), uintCV(64807)],
         winner
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result: claim } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -1005,7 +1234,12 @@ describe("felix lottery", () => {
     });
     it('should only be possible to claim the prize of a "won" lottery', async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result: fund } = simnet.callPublicFn(
         contractName,
         "fund",
@@ -1022,8 +1256,8 @@ describe("felix lottery", () => {
       );
       expect(claimOnFunding).toBeErr(uintCV(502));
 
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
 
       const { result: start } = simnet.callPublicFn(
@@ -1050,7 +1284,9 @@ describe("felix lottery", () => {
       );
       expect(buyTicket).toBeOk(uintCV(1));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
 
       const { result: draw } = simnet.callPublicFn(
         contractName,
@@ -1098,10 +1334,15 @@ describe("felix lottery", () => {
 
     it("should only allow the prize to be claimed once", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
@@ -1110,7 +1351,9 @@ describe("felix lottery", () => {
         [principalCV(winner), uintCV(64807)],
         winner
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result: claim } = simnet.callPublicFn(
         contractName,
@@ -1132,10 +1375,15 @@ describe("felix lottery", () => {
 
     it("should only allow the winning ticket owner to claim the prize", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
@@ -1150,7 +1398,9 @@ describe("felix lottery", () => {
         [principalCV(notWinner), uintCV(25907)],
         notWinner
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result: notWinnerClaim } = simnet.callPublicFn(
         contractName,
@@ -1179,11 +1429,16 @@ describe("felix lottery", () => {
 
     it("should transfer the prize to the ticket owner", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
       simnet.callPublicFn(contractName, "claim-prize", [uintCV(1)], winner);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       simnet.callPublicFn(contractName, "start", [], funder);
 
@@ -1195,7 +1450,9 @@ describe("felix lottery", () => {
       );
       expect(buyTicket).toBeOk(uintCV(1));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
 
       const { result: claimOnDraw, events } = simnet.callPublicFn(
@@ -1241,10 +1498,20 @@ describe("felix lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-draw-number) (contract-call? '${creator}.${contractName} draw-numbers))`;
-      simnet.deployContract(contractName, contract, null, creator);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], creator);
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
@@ -1259,7 +1526,12 @@ describe("felix lottery", () => {
     it("should only allow drawing the numbers of an active lottery", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
       const drawer = accounts.get("wallet_7")!;
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       const { result: result1 } = simnet.callPublicFn(
         contractName,
         "draw-numbers",
@@ -1277,7 +1549,7 @@ describe("felix lottery", () => {
       );
       expect(result2).toBeErr(uintCV(502));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       const { result: startResult } = simnet.callPublicFn(
         contractName,
         "start",
@@ -1293,7 +1565,9 @@ describe("felix lottery", () => {
       );
       expect(result3).toBeErr(uintCV(301));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       const { result } = simnet.callPublicFn(
         contractName,
         "draw-numbers",
@@ -1309,10 +1583,15 @@ describe("felix lottery", () => {
       const contract = await generateLotteryContract(defaultContractArgs);
       const drawer = accounts.get("wallet_7")!;
 
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       const { result: startResult } = simnet.callPublicFn(
         contractName,
@@ -1322,7 +1601,7 @@ describe("felix lottery", () => {
       );
       expect(startResult).toBeOk(boolCV(true));
 
-      simnet.mineEmptyBlocks(100);
+      simnet.mineEmptyBurnBlocks(100);
       const { result } = simnet.callPublicFn(
         contractName,
         "draw-numbers",
@@ -1338,9 +1617,14 @@ describe("felix lottery", () => {
       const contract = await generateLotteryContract(defaultContractArgs);
       const drawer = accounts.get("wallet_7")!;
       const player = accounts.get("wallet_3")!;
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
         contractName,
@@ -1348,7 +1632,9 @@ describe("felix lottery", () => {
         [principalCV(player), uintCV(12345)],
         player
       );
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       const { result } = simnet.callPublicFn(
         contractName,
         "draw-numbers",
@@ -1386,9 +1672,14 @@ describe("felix lottery", () => {
       const contract = await generateLotteryContract(defaultContractArgs);
       const drawer = accounts.get("wallet_7")!;
       const player = accounts.get("wallet_3")!;
-      simnet.deployContract(contractName, contract, null, creator);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        creator
+      );
       simnet.callPublicFn(contractName, "fund", [], creator);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], creator);
       simnet.callPublicFn(
         contractName,
@@ -1403,7 +1694,9 @@ describe("felix lottery", () => {
         player
       );
       expect(winnerResult).toBeOk(uintCV(2));
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       const { result } = simnet.callPublicFn(
         contractName,
         "draw-numbers",
@@ -1444,8 +1737,18 @@ describe("felix lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-fund) (contract-call? '${deployer}.${contractName} fund))`;
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
         "proxy-fund",
@@ -1458,12 +1761,17 @@ describe("felix lottery", () => {
 
     it("a contract can only be funded if it is not started", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
 
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(boolCV(true));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
 
       simnet.callPublicFn(contractName, "start", [], funder);
       const { result: secondFundRequest } = simnet.callPublicFn(
@@ -1477,12 +1785,17 @@ describe("felix lottery", () => {
 
     it("a contract can only be funded if it is not ended", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
 
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
-      simnet.mineEmptyBlocks(
+      simnet.mineEmptyBurnBlocks(
         defaultContractArgs.endBlock - defaultContractArgs.startBlock - 1
       );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
@@ -1501,7 +1814,12 @@ describe("felix lottery", () => {
         ...defaultContractArgs,
         slots: 2,
       });
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result: firstFundResult } = simnet.callPublicFn(
         contractName,
         "fund",
@@ -1527,7 +1845,12 @@ describe("felix lottery", () => {
 
     it("a contract can only be funded if the funder is not a funder already", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result: firstFundResult } = simnet.callPublicFn(
         contractName,
         "fund",
@@ -1546,7 +1869,12 @@ describe("felix lottery", () => {
 
     it("a contract should transfer the slot size from the funder to itself when funding", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { events } = simnet.callPublicFn(contractName, "fund", [], funder);
       const transfer = events[0];
 
@@ -1560,7 +1888,12 @@ describe("felix lottery", () => {
 
     it("the contract prize pool should be updated with every fund", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result: prizePoolBefore } = simnet.callReadOnlyFn(
         contractName,
         "get-prize-pool",
@@ -1588,9 +1921,14 @@ describe("felix lottery", () => {
         startBlock: 10,
         endBlock: 20,
       });
-      simnet.deployContract(contractName, contract, null, deployer);
-      if (simnet.blockHeight < 10) {
-        simnet.mineEmptyBlocks(10 - simnet.blockHeight);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      if (simnet.burnBlockHeight < 10) {
+        simnet.mineEmptyBurnBlocks(10 - simnet.burnBlockHeight);
       }
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeErr(uintCV(505));
@@ -1604,8 +1942,18 @@ describe("felix lottery", () => {
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-get-fund-refund) (contract-call? '${deployer}.${contractName} get-fund-refund))`;
 
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
       simnet.callPublicFn(contractName, "cancel", [], felix);
       const { result: getTicketRefundResult } = simnet.callPublicFn(
@@ -1619,7 +1967,12 @@ describe("felix lottery", () => {
 
     it("is possible to get a pool contribution refund on a cancelled lottery", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(boolCV(true));
 
@@ -1646,7 +1999,12 @@ describe("felix lottery", () => {
 
     it("is only possible to get a pool contribution refund once", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(boolCV(true));
 
@@ -1670,7 +2028,12 @@ describe("felix lottery", () => {
 
     it("is only possible to get a refund for a contribution if the lottery was cancelled", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(trueCV());
 
@@ -1681,8 +2044,8 @@ describe("felix lottery", () => {
         funder
       );
       expect(tryRefund).toBeErr(uintCV(502));
-      simnet.mineEmptyBlocks(
-        defaultContractArgs.startBlock - simnet.blockHeight
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.startBlock - simnet.burnBlockHeight + 1
       );
       const { result: start } = simnet.callPublicFn(
         contractName,
@@ -1700,7 +2063,9 @@ describe("felix lottery", () => {
       );
       expect(tryRefundOnStart).toBeErr(uintCV(502));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight + 1
+      );
       const { result: drawNumbers } = simnet.callPublicFn(
         contractName,
         "draw-numbers",
@@ -1720,7 +2085,12 @@ describe("felix lottery", () => {
 
     it("is only possible to get a refund for a lottery if the caller is funder of the lottery", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(boolCV(true));
 
@@ -1744,7 +2114,12 @@ describe("felix lottery", () => {
 
     it("is possible for multiple funders to get their refunds", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
       simnet.callPublicFn(contractName, "fund", [], secondFunder);
 
@@ -1789,11 +2164,21 @@ describe("felix lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-get-ticket-refund (ticket-id uint)) (contract-call? '${deployer}.${contractName} get-ticket-refund ticket-id))`;
-      simnet.deployContract(contractName, contract, null, deployer);
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(boolCV(true));
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
         contractName,
@@ -1813,11 +2198,16 @@ describe("felix lottery", () => {
 
     it("is possible to get a ticket refund on a cancelled lottery", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       const { result } = simnet.callPublicFn(contractName, "fund", [], funder);
       expect(result).toBeOk(boolCV(true));
 
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
       const { result: buyTicketResult } = simnet.callPublicFn(
         contractName,
@@ -1863,9 +2253,14 @@ describe("felix lottery", () => {
 
     it("is only possible to get a ticket refund once", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
         contractName,
@@ -1891,9 +2286,14 @@ describe("felix lottery", () => {
 
     it("is only possible to get a refund for a ticket if the lottery was cancelled", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
         contractName,
@@ -1908,7 +2308,9 @@ describe("felix lottery", () => {
         ticketBuyer
       );
       expect(getTicketRefundResult).toBeErr(uintCV(502));
-      simnet.mineEmptyBlocks(defaultContractArgs.endBlock - simnet.blockHeight);
+      simnet.mineEmptyBurnBlocks(
+        defaultContractArgs.endBlock - simnet.burnBlockHeight
+      );
       simnet.callPublicFn(contractName, "draw-numbers", [], funder);
       const { result: getTicketRefundResultAfterFinished } =
         simnet.callPublicFn(
@@ -1922,9 +2324,14 @@ describe("felix lottery", () => {
 
     it("is only possible to get a refund for a ticket if you are the ticket owner", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
         contractName,
@@ -1944,9 +2351,14 @@ describe("felix lottery", () => {
 
     it("is possible for multiple ticket owners to get their ticket refund", async () => {
       const contract = await generateLotteryContract(defaultContractArgs);
-      simnet.deployContract(contractName, contract, null, deployer);
+      simnet.deployContract(
+        contractName,
+        contract,
+        { clarityVersion: 3 },
+        deployer
+      );
       simnet.callPublicFn(contractName, "fund", [], funder);
-      simnet.mineEmptyBlocks(defaultContractArgs.startBlock);
+      simnet.mineEmptyBurnBlocks(defaultContractArgs.startBlock);
       simnet.callPublicFn(contractName, "start", [], funder);
       simnet.callPublicFn(
         contractName,
