@@ -126,8 +126,8 @@
         (current-prize (var-get prize-pool))) 
     (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-in-funding) err-invalid-status)
-    (asserts! (> start-block-height block-height) err-start-too-close)
-    (asserts! (< block-height (- end-block-height end-cooldown)) err-end-too-close)
+    (asserts! (> start-block-height tenure-height) err-start-too-close)
+    (asserts! (< tenure-height (- end-block-height end-cooldown)) err-end-too-close)
     (asserts! (> end-block-height (+ start-block-height start-block-buffer)) err-end-too-close)
     (asserts! (< last-funder-count number-of-slots) err-no-funding-slot-available)
     (asserts! (not (is-funder contract-caller)) err-principal-already-funder)
@@ -141,9 +141,9 @@
     (begin
         (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (is-in-funding) err-invalid-status)
-        (asserts! (> block-height start-block-height) err-start-too-early)
+        (asserts! (> tenure-height start-block-height) err-start-too-early)
         (asserts! (> end-block-height (+ start-block-height start-block-buffer)) err-end-too-close)
-        (asserts! (> end-block-height block-height) err-end-too-close)
+        (asserts! (> end-block-height tenure-height) err-end-too-close)
         (asserts! (> (var-get funder-count) u0) err-not-funded)
         (var-set current-status (active-status))
         (ok true)))
@@ -159,7 +159,7 @@
     (begin 
         (asserts! (is-standard-principal-call) err-standard-principal-only)
         (asserts! (is-active) err-invalid-status)
-        (asserts! (> block-height end-block-height) err-not-ended-yet)
+        (asserts! (> tenure-height end-block-height) err-not-ended-yet)
         (let
             ;; We're using the citycoin-vrf-v2 contract to get a random number
             ((random-number (unwrap! (contract-call? '<%= felixRandomContract %> get-rnd (- end-block-height u1)) err-unable-to-get-random-seed))
@@ -174,7 +174,7 @@
         (current-sells (var-get sold-tickets-pool)))
     (asserts! (is-standard-principal-call) err-standard-principal-only)
     (asserts! (is-active) err-invalid-status)
-    (asserts! (< block-height (- end-block-height end-cooldown)) err-end-too-close)
+    (asserts! (< tenure-height (- end-block-height end-cooldown)) err-end-too-close)
     (asserts! (< (var-get last-ticket-id) number-of-tickets) err-sold-out)
     (asserts! (<= selected-nums (- (pow u10 difficulty) u1)) err-invalid-number)
     (asserts! (is-none (map-get? numbersToTicketIds selected-nums)) err-number-already-sold)

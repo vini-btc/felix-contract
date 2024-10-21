@@ -1,5 +1,5 @@
-import { de, faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { faker } from "@faker-js/faker";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   GenerateNftLotteryArgs,
   generateNftLotteryContract,
@@ -53,8 +53,13 @@ const deployLottery = async (
     ...defaultContractArgs,
     ...contractArgs,
   });
-  simnet.deployContract(contractName, contract, null, deployer);
-  return simnet.blockHeight;
+  simnet.deployContract(
+    contractName,
+    contract,
+    { clarityVersion: 3 },
+    deployer
+  );
+  return simnet.burnBlockHeight;
 };
 
 const buyTicket = (maybeNumber?: number) => {
@@ -70,18 +75,21 @@ const buyTicket = (maybeNumber?: number) => {
 };
 
 const drawLottery = () => {
-  simnet.mineEmptyBlocks(defaultContractArgs.duration);
+  simnet.mineEmptyBurnBlocks(defaultContractArgs.duration + 1);
   simnet.callPublicFn(contractName, "draw", [], felix);
 };
 
 describe("NFT Lottery", () => {
-  describe("Deploy", () => {
+  beforeEach(() => {
+    simnet.setEpoch("3.0");
+  });
+  describe("deploy", () => {
     it("should not deploy the contract if deployer can't transfer the contract", async () => {
       const contract = await generateNftLotteryContract(defaultContractArgs);
       const { result } = simnet.deployContract(
         contractName,
         contract,
-        null,
+        { clarityVersion: 3 },
         deployer
       );
       expect(result).toBeErr(uintCV(3));
@@ -93,7 +101,7 @@ describe("NFT Lottery", () => {
       const { result } = simnet.deployContract(
         contractName,
         contract,
-        null,
+        { clarityVersion: 3 },
         deployer
       );
       expect(result).toBeOk(trueCV());
@@ -106,7 +114,12 @@ describe("NFT Lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-buy-ticket (recipient principal) (nums uint)) (contract-call? '${deployer}.${contractName} buy-ticket recipient nums))`;
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
         "proxy-buy-ticket",
@@ -176,12 +189,12 @@ describe("NFT Lottery", () => {
 
     it("should not allow to buy tickets at block end or later", async () => {
       const deployBlockHeight = await deployLottery();
-      // Move to two blocks before the end
-      simnet.mineEmptyBlocks(
+      // Move to one tenure height before the end
+      simnet.mineEmptyBurnBlocks(
         deployBlockHeight +
           defaultContractArgs.duration -
-          simnet.blockHeight -
-          2
+          simnet.burnBlockHeight -
+          1
       );
       const { result: oneBlockBeforeTheEnd } = simnet.callPublicFn(
         contractName,
@@ -191,6 +204,8 @@ describe("NFT Lottery", () => {
       );
       expect(oneBlockBeforeTheEnd).toBeOk(uintCV(1));
 
+      // Now at tenure height equals end;
+      simnet.mineEmptyBurnBlock();
       const { result: atTheEnd } = simnet.callPublicFn(
         contractName,
         "buy-ticket",
@@ -199,6 +214,8 @@ describe("NFT Lottery", () => {
       );
       expect(atTheEnd).toBeErr(uintCV(100));
 
+      // Moving to the next tenure height after the end
+      simnet.mineEmptyBurnBlock();
       const { result: oneBlockAfterTheEnd } = simnet.callPublicFn(
         contractName,
         "buy-ticket",
@@ -300,7 +317,12 @@ describe("NFT Lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-draw) (contract-call? '${deployer}.${contractName} draw))`;
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
         "proxy-draw",
@@ -319,11 +341,11 @@ describe("NFT Lottery", () => {
       expect(result).toBeErr(uintCV(105));
 
       // Move simnet to two blocks before the end
-      simnet.mineEmptyBlocks(
+      simnet.mineEmptyBurnBlocks(
         deployBlockHeight +
           defaultContractArgs.duration -
-          simnet.blockHeight -
-          2
+          simnet.burnBlockHeight -
+          1
       );
 
       // This TX goes to the block before the end
@@ -335,7 +357,8 @@ describe("NFT Lottery", () => {
       );
       expect(resultBeforeEndBlock).toBeErr(uintCV(105));
 
-      // This TX goes to the block height that matches the end
+      // Moving to end tenure height
+      simnet.mineEmptyBurnBlock();
       const { result: resultAtEndBlock } = simnet.callPublicFn(
         contractName,
         "draw",
@@ -344,40 +367,41 @@ describe("NFT Lottery", () => {
       );
       expect(resultAtEndBlock).toBeErr(uintCV(105));
 
-      // This TX goes after the end block
+      // Moving to one burn block after end tenure height
+      simnet.mineEmptyBurnBlock();
       const { result: resultAfterEndBlock } = simnet.callPublicFn(
         contractName,
         "draw",
         [],
         felix
       );
-      expect(resultAfterEndBlock).toBeOk(uintCV(41861));
+      expect(resultAfterEndBlock).toBeOk(uintCV(17633));
     });
 
     it("should pick a random number using the random number contract", async () => {
       const deployBlockHeight = await deployLottery();
-      simnet.mineEmptyBlocks(
+      simnet.mineEmptyBurnBlocks(
         deployBlockHeight +
           defaultContractArgs.duration +
           1 -
-          simnet.blockHeight
+          simnet.burnBlockHeight
       );
       const { result } = simnet.callPublicFn(contractName, "draw", [], felix);
-      expect(result).toBeOk(uintCV(41861));
+      expect(result).toBeOk(uintCV(17633));
     });
 
     it("should always pick the random number from the end block height", async () => {
       await deployLottery();
-      simnet.mineEmptyBlocks(2000);
-      // We already know the drawn number for this lottery is 41861 - it is deterministic in test environments
+      simnet.mineEmptyBurnBlocks(2000);
+      // We already know the drawn number for this lottery is 17633 - it is deterministic in test environments
       // So we move many blocks ahead before we draw to check that it's picking it from the right block height.
       const { result } = simnet.callPublicFn(contractName, "draw", [], felix);
-      expect(result).toBeOk(uintCV(41861));
+      expect(result).toBeOk(uintCV(17633));
     });
 
     it("should set the result after the drawing", async () => {
       await deployLottery();
-      simnet.mineEmptyBlocks(120);
+      simnet.mineEmptyBurnBlocks(120);
       const { result } = simnet.callReadOnlyFn(
         contractName,
         "get-result",
@@ -392,14 +416,14 @@ describe("NFT Lottery", () => {
         [],
         felix
       );
-      expect(resultAfterDrawing).toBeSome(uintCV(41861));
+      expect(resultAfterDrawing).toBeSome(uintCV(17633));
     });
 
     it("should only draw once", async () => {
       await deployLottery();
-      simnet.mineEmptyBlocks(400);
+      simnet.mineEmptyBurnBlocks(400);
       const { result } = simnet.callPublicFn(contractName, "draw", [], felix);
-      expect(result).toBeOk(uintCV(41861));
+      expect(result).toBeOk(uintCV(17633));
 
       const { result: secondDraw } = simnet.callPublicFn(
         contractName,
@@ -411,22 +435,21 @@ describe("NFT Lottery", () => {
     });
 
     it.each([
-      [2, 61],
-      [3, 861],
-      [4, 1861],
-      [5, 41861],
-      // We repeat for six cause the six digit is 0
-      [6, 41861],
-      [7, 6041861],
-      [8, 56041861],
-      // We repeat for nince cause the nineth digit is also 0
-      [9, 56041861],
-      [10, 6056041861],
+      [2, 33],
+      [3, 633],
+      [4, 7633],
+      [5, 17633],
+      [6, 617633],
+      // We repeat for seven because the seventh digit is 0
+      [7, 617633],
+      [8, 80617633],
+      [9, 880617633],
+      [10, 3880617633],
     ])(
       "should pick %i when lottery difficulty is %i",
       async (difficulty, expected) => {
         await deployLottery({ difficulty });
-        simnet.mineEmptyBlocks(400);
+        simnet.mineEmptyBurnBlocks(400);
         const { result } = simnet.callPublicFn(contractName, "draw", [], felix);
         expect(result).toBeOk(uintCV(expected));
       }
@@ -437,7 +460,7 @@ describe("NFT Lottery", () => {
       simnet.callPublicFn(
         contractName,
         "buy-ticket",
-        [principalCV(buyer), uintCV(41861)],
+        [principalCV(buyer), uintCV(17633)],
         buyer
       );
       const { result } = simnet.callReadOnlyFn(
@@ -447,7 +470,7 @@ describe("NFT Lottery", () => {
         buyer
       );
       expect(result).toBeNone();
-      simnet.mineEmptyBlocks(300);
+      simnet.mineEmptyBurnBlocks(300);
       simnet.callPublicFn(contractName, "draw", [], felix);
       const { result: withWinnerResult } = simnet.callReadOnlyFn(
         contractName,
@@ -462,11 +485,16 @@ describe("NFT Lottery", () => {
   describe("claim-prize", () => {
     it("should not allow contracts to call", async () => {
       await deployLottery();
-      buyTicket(41861);
+      buyTicket(17633);
       drawLottery();
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-claim-prize (ticket-id uint)) (contract-call? '${deployer}.${contractName} claim-prize ticket-id))`;
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
         "proxy-claim-prize",
@@ -507,7 +535,7 @@ describe("NFT Lottery", () => {
     it("should only allow the owner of a ticket to claim a prize", async () => {
       await deployLottery();
       // Buyer buys the winning ticket
-      buyTicket(41861);
+      buyTicket(17633);
       drawLottery();
       // Exploiter tries to claim the prize
       const { result } = simnet.callPublicFn(
@@ -530,7 +558,7 @@ describe("NFT Lottery", () => {
     it("should only allow the owner of a ticket to claim the prize once", async () => {
       await deployLottery();
       // Buyer buys the winning ticket
-      buyTicket(41861);
+      buyTicket(17633);
       drawLottery();
       simnet.callPublicFn(contractName, "claim-prize", [uintCV(1)], buyer);
       const { result } = simnet.callPublicFn(
@@ -547,7 +575,7 @@ describe("NFT Lottery", () => {
       buyTicket();
       buyTicket();
       // Buyer buys the winning ticket
-      buyTicket(41861);
+      buyTicket(17633);
       drawLottery();
       const { result, events } = simnet.callPublicFn(
         contractName,
@@ -582,7 +610,12 @@ describe("NFT Lottery", () => {
       const exploiter = accounts.get("wallet_7")!;
       const proxyContractName = "felix-proxy";
       const proxyContract = `(define-public (proxy-claim-revenue) (contract-call? '${deployer}.${contractName} claim-revenue))`;
-      simnet.deployContract(proxyContractName, proxyContract, null, exploiter);
+      simnet.deployContract(
+        proxyContractName,
+        proxyContract,
+        { clarityVersion: 3 },
+        exploiter
+      );
       const { result } = simnet.callPublicFn(
         `${exploiter}.${proxyContractName}`,
         "proxy-claim-revenue",
@@ -648,7 +681,7 @@ describe("NFT Lottery", () => {
       buyTicket();
       buyTicket();
       // Winning ticket
-      buyTicket(41861);
+      buyTicket(17633);
       drawLottery();
       const { result, events } = simnet.callPublicFn(
         contractName,

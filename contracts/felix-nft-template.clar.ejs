@@ -8,7 +8,7 @@
 (define-constant difficulty u<%= difficulty %>)
 (define-constant ticket-price u<%= ticketPrice %>)
 (define-constant available-tickets u<%= availableTickets %>)
-(define-constant end-block-height (+ block-height u<%= duration %>))
+(define-constant end-block-height (+ tenure-height u<%= duration %>))
 (define-constant contract-principal (as-contract tx-sender))
 (define-constant funder tx-sender)
 
@@ -52,7 +52,7 @@
 (define-public (buy-ticket (recipient principal) (numbers uint))
     (begin
         (asserts! (is-standard-principal-call) err-standard-principal-only)
-        (asserts! (< block-height end-block-height) err-sale-period-ended)
+        (asserts! (< tenure-height end-block-height) err-sale-period-ended)
         (asserts! (< (var-get last-ticket-id) available-tickets) err-sold-out)
         (asserts! (is-none (map-get? numbersToTicketIds numbers)) err-number-unavailable)
         (asserts! (< numbers (- (pow u10 difficulty) u1)) err-number-out-of-bounds)
@@ -68,7 +68,7 @@
 (define-public (draw)
     (begin
         (asserts! (is-standard-principal-call) err-standard-principal-only)
-        (asserts! (> block-height end-block-height) err-too-soon)
+        (asserts! (> tenure-height end-block-height) err-too-soon)
         (asserts! (is-none (var-get result)) err-already-finished)
         (let
             ((random-number (unwrap! (contract-call? '<%= felixRandomContract %> get-rnd end-block-height) err-drawing-number))
