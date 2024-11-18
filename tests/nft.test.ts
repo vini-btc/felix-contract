@@ -745,5 +745,34 @@ describe("NFT Lottery", () => {
         ]
       `);
     });
+
+    it("should transfer the nft back if the lottery had no winner and did not sell any tickets", async () => {
+      await deployLottery();
+      drawLottery();
+      const { result, events } = simnet.callPublicFn(
+        contractName,
+        "claim-revenue",
+        [],
+        deployer
+      );
+      expect(result).toBeOk(trueCV());
+      expect(events).toMatchInlineSnapshot(`
+        [
+          {
+            "data": {
+              "asset_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.sample-megapont-nft::Megapont-Ape-Club",
+              "raw_value": "0x0100000000000000000000000000000001",
+              "recipient": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+              "sender": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.felixnft-test",
+              "value": {
+                "type": 1,
+                "value": 1n,
+              },
+            },
+            "event": "nft_transfer_event",
+          },
+        ]
+      `);
+    });
   });
 });

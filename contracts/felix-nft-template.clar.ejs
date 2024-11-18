@@ -97,12 +97,13 @@
         (let
             ((revenue (stx-get-balance contract-principal))) 
         (match (get-winner) opt
-            ;; Lottery has winner, only return revenue
-            (try! (as-contract (stx-transfer? revenue contract-principal funder)))
-            ;; Lottery has no winner, return revenue and transfer NFT back
+            ;; Lottery has winner, only return revenue if it exists
+            (try! (if (> revenue u0) (as-contract (stx-transfer? revenue contract-principal funder)) (ok true)))
+            ;; Lottery has no winner, return revenue if it exists and transfer NFT back
             (begin 
                 (try! (as-contract (contract-call? '<%= nftContract %> transfer u<%= nftUid %> contract-principal funder)))
-                (try! (as-contract (stx-transfer? revenue contract-principal funder)))))
+                (try! (if (> revenue u0) (as-contract (stx-transfer? revenue contract-principal funder)) (ok true)))
+            ))
         (var-set revenue-claimed true)
         (ok true))))
 
